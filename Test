@@ -450,12 +450,21 @@ function UI.CreateLib(title, theme)
             AutomaticCanvasSize=Enum.AutomaticSize.Y,
             Visible=false,ZIndex=3,Parent=self._contentArea,
         })
-        Pad(10,10,10,10,frame)
 
-        -- two-column holder inside the scroll frame
+        -- FIX: scale-based widths break inside ScrollingFrame (canvas X = 0).
+        -- Use absolute pixel column widths instead.
+        -- COL_W = (windowWidth - scrollbar - padding*2 - gap) / 2
+        local COL_W = math.floor((WIN_W - 6 - 20 - 10) / 2)
+
+        local innerPad=New("Frame",{
+            Size=UDim2.new(1,-6,0,0),AutomaticSize=Enum.AutomaticSize.Y,
+            BackgroundTransparency=1,ZIndex=3,Parent=frame,
+        })
+        Pad(10,0,10,10,innerPad)
+
         local colHolder=New("Frame",{
             Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,
-            BackgroundTransparency=1,ZIndex=3,Parent=frame,
+            BackgroundTransparency=1,ZIndex=3,Parent=innerPad,
         })
         New("UIListLayout",{
             Parent=colHolder,FillDirection=Enum.FillDirection.Horizontal,
@@ -464,12 +473,12 @@ function UI.CreateLib(title, theme)
             SortOrder=Enum.SortOrder.LayoutOrder,Padding=UDim.new(0,10),
         })
         local colA=New("Frame",{
-            Size=UDim2.new(0.5,-5,0,0),AutomaticSize=Enum.AutomaticSize.Y,
+            Size=UDim2.new(0,COL_W,0,0),AutomaticSize=Enum.AutomaticSize.Y,
             BackgroundTransparency=1,ZIndex=3,Parent=colHolder,
         })
         VList(colA,10)
         local colB=New("Frame",{
-            Size=UDim2.new(0.5,-5,0,0),AutomaticSize=Enum.AutomaticSize.Y,
+            Size=UDim2.new(0,COL_W,0,0),AutomaticSize=Enum.AutomaticSize.Y,
             BackgroundTransparency=1,ZIndex=3,Parent=colHolder,
         })
         VList(colB,10)
