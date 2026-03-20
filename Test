@@ -1,36 +1,4 @@
---[[
-    UILibrary v5.0 — Primordial Style (fixed)
-    ─────────────────────────────────────────
-    FIXES from v4:
-    • Sections no longer stack / bleed across columns
-      (each Page now owns isolated column frames,
-       UIGridLayout replaced with manual two-column split)
-    • Tab icon: pass rbxassetid:// string as second arg to AddTab
-    • Keybind badge moved to vertical-center of title bar
-    • Theme is now true Primordial grey (no blue tint)
-    • Accent only used for highlights, not backgrounds
-    ─────────────────────────────────────────
-    API (same as before):
-        local UI  = loadstring(game:HttpGet("RAW_URL"))()
-        local Win = UI:CreateWindow("MyHub",{
-            Key   = Enum.KeyCode.RightShift,
-            Theme = "Primordial",
-        })
-        Win:AddSettingsTab()
-        local Tab  = Win:AddTab("Aimbot", "rbxassetid://7733960981")
-        local Page = Tab:AddPage("General")
-        local Sec  = Page:AddSection("Aimbot")
-        Sec:AddToggle("Enable", false, function(v) end)
-        Sec:AddSlider("FOV", 0, 360, 90, function(v) end)
-        Sec:AddDropdown("Hitpart",{"Head","Torso"},"Head",function(v) end)
-        Sec:AddButton("Fire", function() end)
-        Sec:AddTextbox("Tag","Enter...",function(v) end)
-        Sec:AddKeybind("Key", Enum.KeyCode.E, function() end)
-        Sec:AddColorPicker("Color",Color3.fromRGB(255,0,0),function(c) end)
-        Win:Notify({Title="OK",Message="Loaded",Duration=4})
-]]
 
--- ════════════════════════════════════════════════════════════
 local Players  = game:GetService("Players")
 local TweenSvc = game:GetService("TweenService")
 local UIS      = game:GetService("UserInputService")
@@ -224,9 +192,9 @@ function Lib:CreateWindow(title, opts)
     end)
     doWM()
 
-    -- ── Keybind list (bottom-left) ─────────────────────────────
+    -- ── Keybind list (middle-left) ─────────────────────────────
     local kbFrame = New("Frame",{
-        AnchorPoint=Vector2.new(0,1), Position=UDim2.new(0,8,1,-8),
+        AnchorPoint=Vector2.new(0,0.5), Position=UDim2.new(0,8,0.5,0),
         Size=UDim2.new(0,192,0,0), AutomaticSize=Enum.AutomaticSize.Y,
         BackgroundColor3=T.WMBG, BorderSizePixel=0,
         ZIndex=500, Visible=false, Parent=gui,
@@ -436,6 +404,10 @@ function Lib:CreateWindow(title, opts)
             Tw(o._btn,{BackgroundTransparency=1},0.14):Play()
             o._btnLine.Visible=false
             Tw(o._btnLbl,{TextColor3=T.TextMut},0.14):Play()
+            -- FIX: hide the old tab's active page content frame
+            if o._activePage then
+                o._activePage._frame.Visible=false
+            end
         end
         self._activeTab=tab
         tab._pageList.Visible=true
