@@ -21,7 +21,7 @@
 ║    Win:Notify("Title","Message",4)                       ║
 ║    Win:SetKey(Enum.KeyCode.RightShift)  -- toggle key    ║
 ╚══════════════════════════════════════════════════════════╝
-    Themes: "Primordial" | "Dark" | "Midnight"
+    Themes: "Primordial" | "PrimordialPink" | "Dark" | "Midnight"
 ]]
 
 -- ════════════════════════════════════════════════════════════
@@ -61,6 +61,7 @@ end
 --  THEMES
 -- ════════════════════════════════════════════════════════════
 local Themes = {
+    -- Classic dark grey with blue-indigo accent (default)
     Primordial = {
         BG      = Color3.fromRGB(23,23,25),
         Panel   = Color3.fromRGB(29,29,32),
@@ -80,6 +81,28 @@ local Themes = {
         Warn    = Color3.fromRGB(210,155,35),
         Scroll  = Color3.fromRGB(55,55,66),
         WMBG    = Color3.fromRGB(14,14,16),
+    },
+    -- Primordial Pink — same grey base, muted rose/salmon accent
+    -- matches the pink slider / checkbox variant shown in screenshots
+    PrimordialPink = {
+        BG      = Color3.fromRGB(26,24,25),   -- very slightly warm dark
+        Panel   = Color3.fromRGB(32,29,31),
+        Surface = Color3.fromRGB(40,36,38),
+        Card    = Color3.fromRGB(34,31,33),
+        Hover   = Color3.fromRGB(48,43,46),
+        Border  = Color3.fromRGB(56,50,53),
+        BdDim   = Color3.fromRGB(42,38,40),
+        Accent  = Color3.fromRGB(196,90,100),  -- muted rose/salmon (matches image sliders)
+        TxPrim  = Color3.fromRGB(218,210,212),
+        TxSec   = Color3.fromRGB(148,132,136),
+        TxMut   = Color3.fromRGB(82,70,74),
+        TxInfo  = Color3.fromRGB(118,104,108),
+        TabBG   = Color3.fromRGB(20,18,19),
+        ActTab  = Color3.fromRGB(38,34,36),
+        ChkOff  = Color3.fromRGB(50,44,47),
+        Warn    = Color3.fromRGB(210,155,35),
+        Scroll  = Color3.fromRGB(64,56,60),
+        WMBG    = Color3.fromRGB(15,13,14),
     },
     Dark = {
         BG      = Color3.fromRGB(18,18,22),
