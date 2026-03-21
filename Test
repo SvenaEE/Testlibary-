@@ -1,937 +1,1413 @@
---[[
-    UILibrary v7.0
-    ──────────────
-    local UI  = loadstring(game:HttpGet("RAW_URL"))()
-    local Win = UI.CreateLib("MyHub")
+local G2L = {};
+local Players = game:GetService("Players");
+local TweenService = game:GetService("TweenService");
+local UserInputService = game:GetService("UserInputService");
+local RunService = game:GetService("RunService");
+local HttpService = game:GetService("HttpService");
+local LP = Players.LocalPlayer;
 
-    local Tab = Win:NewTab("Aimbot")
-    local Sec = Tab:NewSection("Settings")
-
-    Sec:NewButton("Fire", "Info", function() end)
-    Sec:NewToggle("Enable", "Info", function(state) end)
-    Sec:NewSlider("FOV", "Info", 360, 0, function(v) end)
-    Sec:NewTextBox("Tag", "Info", function(t) end)
-    Sec:NewKeybind("Key", "Info", Enum.KeyCode.E, function() end)
-    -- Right-click keybind row to set mode: Toggle / Hold / Always On
-    Sec:NewDropdown("Part", "Info", {"A","B","C"}, function(v) end)
-    Sec:NewColorPicker("Color", "Info", Color3.fromRGB(255,0,0), function(c) end)
-    Sec:NewDivider("label")
-
-    Win:Notify("Title", "Message", 4)
-    Win:SetKey(Enum.KeyCode.RightShift)
-]]
-
--- ════════════════════════════════════════════════════════════
-local Players  = game:GetService("Players")
-local TweenSvc = game:GetService("TweenService")
-local UIS      = game:GetService("UserInputService")
-local Run      = game:GetService("RunService")
-local Http     = game:GetService("HttpService")
-local LP       = Players.LocalPlayer
-
--- ════════════════════════════════════════════════════════════
---  HELPERS
--- ════════════════════════════════════════════════════════════
-local function Tw(o,p,t,s,d)
-    return TweenSvc:Create(o,TweenInfo.new(
-        t or .15,s or Enum.EasingStyle.Quart,d or Enum.EasingDirection.Out),p)
-end
-local function New(cls,props)
-    local o=Instance.new(cls)
-    for k,v in pairs(props or {}) do if k~="Parent" then o[k]=v end end
-    if props and props.Parent then o.Parent=props.Parent end
-    return o
-end
-local function Crn(r,p)   New("UICorner",{CornerRadius=UDim.new(0,r),Parent=p}) end
-local function Stk(c,t,p) New("UIStroke",{Color=c,Thickness=t or 1,Parent=p}) end
-local function Pad(l,r,t,b,p)
-    New("UIPadding",{PaddingLeft=UDim.new(0,l),PaddingRight=UDim.new(0,r),
-        PaddingTop=UDim.new(0,t),PaddingBottom=UDim.new(0,b),Parent=p})
-end
-local function VList(p,gap)
-    New("UIListLayout",{Parent=p,SortOrder=Enum.SortOrder.LayoutOrder,
-        Padding=UDim.new(0,gap or 0),FillDirection=Enum.FillDirection.Vertical,
-        HorizontalAlignment=Enum.HorizontalAlignment.Left})
+local function Tween(obj, props, t, s, d)
+	return TweenService:Create(obj, TweenInfo.new(t or 0.15, s or Enum.EasingStyle.Quart, d or Enum.EasingDirection.Out), props);
 end
 
--- ════════════════════════════════════════════════════════════
---  SINGLE THEME
--- ════════════════════════════════════════════════════════════
-local T = {
-    BG      = Color3.fromRGB(23,23,25),
-    Panel   = Color3.fromRGB(29,29,32),
-    Surface = Color3.fromRGB(36,36,40),
-    Card    = Color3.fromRGB(31,31,35),
-    Hover   = Color3.fromRGB(42,42,48),
-    Border  = Color3.fromRGB(50,50,56),
-    BdDim   = Color3.fromRGB(38,38,44),
-    Accent  = Color3.fromRGB(78,92,235),
-    TxPrim  = Color3.fromRGB(210,210,215),
-    TxSec   = Color3.fromRGB(130,130,148),
-    TxMut   = Color3.fromRGB(70,70,84),
-    TxInfo  = Color3.fromRGB(100,100,118),
-    TabBG   = Color3.fromRGB(18,18,21),
-    ActTab  = Color3.fromRGB(34,34,39),
-    ChkOff  = Color3.fromRGB(44,44,54),
-    Warn    = Color3.fromRGB(210,155,35),
-    Scroll  = Color3.fromRGB(55,55,66),
-    WMBG    = Color3.fromRGB(14,14,16),
-}
-
--- ════════════════════════════════════════════════════════════
---  KEYBIND REGISTRY
--- ════════════════════════════════════════════════════════════
-local KBList    = {}
-local kbRebuild = nil
-
-local function kbAdd(label,key)
-    local e={label=label,keyName=key and key.Name or "None"}
-    table.insert(KBList,e); if kbRebuild then kbRebuild() end; return e
-end
-local function kbUpd(e,key)
-    e.keyName=key and key.Name or "None"; if kbRebuild then kbRebuild() end
+local function Make(cls, props)
+	local o = Instance.new(cls);
+	for k, v in pairs(props or {}) do
+		if k ~= "Parent" then o[k] = v; end
+	end
+	if props and props.Parent then o.Parent = props.Parent; end
+	return o;
 end
 
--- ════════════════════════════════════════════════════════════
---  CONTEXT MENU HELPER  (shared, only one open at a time)
--- ════════════════════════════════════════════════════════════
-local activeCtx = nil
-local function closeCtx()
-    if activeCtx then activeCtx:Destroy(); activeCtx=nil end
-end
--- Close on any left-click anywhere — deferred so button clicks inside
--- the menu fire BEFORE the menu is destroyed
-UIS.InputBegan:Connect(function(i,gp)
-    if i.UserInputType==Enum.UserInputType.MouseButton1 then
-        task.defer(closeCtx)
-    end
-end)
-
-local function MakeCtxMenu(parent, anchorFrame, options, currentFn, onPick)
-    closeCtx()
-    local menuH = #options * 26 + 8
-    local menu = New("Frame",{
-        Size     = UDim2.new(0,120,0,menuH),
-        Position = UDim2.new(1,-120,1,4),
-        BackgroundColor3 = T.Panel,
-        BorderSizePixel  = 0,
-        ZIndex   = 200,
-        Parent   = parent,
-    })
-    Crn(6,menu); Stk(T.Border,1,menu)
-    Pad(4,4,4,4,menu)
-    VList(menu,2)
-    activeCtx = menu
-
-    for _,opt in ipairs(options) do
-        local isCurrent = (opt == currentFn())
-        local btn = New("TextButton",{
-            Text  = opt,
-            Font  = Enum.Font.Gotham, TextSize=11,
-            TextColor3 = isCurrent and T.Accent or T.TxPrim,
-            TextXAlignment = Enum.TextXAlignment.Left,
-            Size  = UDim2.new(1,0,0,24),
-            BackgroundColor3    = T.Hover,
-            BackgroundTransparency = 1,
-            AutoButtonColor = false,
-            ZIndex = 201,
-            Parent = menu,
-        })
-        Crn(4,btn); Pad(10,6,0,0,btn)
-        -- active dot
-        if isCurrent then
-            New("Frame",{
-                Size=UDim2.new(0,4,0,4),
-                AnchorPoint=Vector2.new(1,0.5),
-                Position=UDim2.new(1,-6,0.5,0),
-                BackgroundColor3=T.Accent,
-                BorderSizePixel=0,ZIndex=202,Parent=btn,
-            })
-        end
-        btn.MouseEnter:Connect(function()
-            Tw(btn,{BackgroundTransparency=0},0.1):Play()
-        end)
-        btn.MouseLeave:Connect(function()
-            Tw(btn,{BackgroundTransparency=1},0.1):Play()
-        end)
-        btn.MouseButton1Click:Connect(function()
-            closeCtx()
-            onPick(opt)
-        end)
-    end
-    return menu
+local function Corner(radius, parent)
+	local o = Instance.new("UICorner");
+	o.CornerRadius = UDim.new(0, radius);
+	o.Parent = parent;
 end
 
--- ════════════════════════════════════════════════════════════
---  LIBRARY
--- ════════════════════════════════════════════════════════════
-local UI = {}
-
-function UI.CreateLib(title)
-    local tKey  = Enum.KeyCode.RightShift
-    local WIN_W = 740
-    local WIN_H = 460
-    local TAB_H = 48
-    local TITLE_H = 36
-    local BODY_H  = WIN_H - TITLE_H - TAB_H
-    local COL_W   = math.floor((WIN_W - 6 - 20 - 10) / 2)
-
-    -- ── ScreenGui — destroy any previous instance first ─────────
-    local GUI_NAME = "UILibrary_MyHub"
-    local coreGui  = game:GetService("CoreGui")
-    local existing = (Run:IsStudio() and LP.PlayerGui or coreGui):FindFirstChild(GUI_NAME)
-    if existing then existing:Destroy() end
-
-    local gui = New("ScreenGui",{
-        Name           = GUI_NAME,
-        ResetOnSpawn   = false,
-        ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-        DisplayOrder   = 999,
-        Parent         = Run:IsStudio() and LP.PlayerGui or coreGui,
-    })
-
-    -- ── Watermark (always visible, auto-width) ─────────────────
-    local wmOuter = New("Frame",{
-        Position=UDim2.new(0,8,0,6),
-        Size=UDim2.new(0,10,0,24),
-        AutomaticSize=Enum.AutomaticSize.X,
-        BackgroundColor3=T.WMBG,BorderSizePixel=0,ZIndex=500,Parent=gui,
-    })
-    Crn(4,wmOuter); Stk(T.Border,1,wmOuter)
-    New("Frame",{
-        Size=UDim2.new(0,2,1,0),BackgroundColor3=T.Accent,
-        BorderSizePixel=0,ZIndex=501,Parent=wmOuter,
-    })
-    local wmLbl=New("TextLabel",{
-        Text="",Font=Enum.Font.Code,TextSize=12,TextColor3=T.TxSec,
-        TextXAlignment=Enum.TextXAlignment.Left,
-        Size=UDim2.new(0,10,1,0),AutomaticSize=Enum.AutomaticSize.X,
-        BackgroundTransparency=1,ZIndex=502,Parent=wmOuter,
-    })
-    Pad(10,12,0,0,wmLbl)
-
-    local fpsA,fpsC,fpsV,lastWM=0,0,60,0
-    local function doWM()
-        local ok,ping=pcall(function() return LP:GetNetworkPing() end)
-        local p=ok and math.round((ping or 0)*1000) or 0
-        local t=os.date("*t")
-        wmLbl.Text=string.format(" %s  |  %s  |  FPS: %d  |  Ping: %dms  |  %02d:%02d ",
-            title,LP.Name,fpsV,p,t.hour,t.min)
-    end
-    Run.Heartbeat:Connect(function(dt)
-        fpsA=fpsA+(1/dt); fpsC=fpsC+1
-        if fpsC>=20 then fpsV=math.floor(fpsA/fpsC); fpsA=0; fpsC=0 end
-        local now=os.clock()
-        if now-lastWM>=1 then lastWM=now; doWM() end
-    end)
-    doWM()
-
-    -- ── Keybind list (middle-left, always visible) ─────────────
-    local kbFrame=New("Frame",{
-        AnchorPoint=Vector2.new(0,0.5),
-        Position=UDim2.new(0,8,0.5,0),
-        Size=UDim2.new(0,192,0,0),
-        AutomaticSize=Enum.AutomaticSize.Y,
-        BackgroundColor3=T.WMBG,BorderSizePixel=0,
-        ZIndex=500,Visible=false,Parent=gui,
-    })
-    Crn(4,kbFrame); Stk(T.Border,1,kbFrame); Pad(0,0,4,4,kbFrame)
-    VList(kbFrame,0)
-
-    local kbHdr=New("Frame",{Size=UDim2.new(1,0,0,20),BackgroundTransparency=1,ZIndex=501,Parent=kbFrame})
-    New("Frame",{Size=UDim2.new(0,2,1,0),BackgroundColor3=T.Accent,BorderSizePixel=0,ZIndex=502,Parent=kbHdr})
-    New("TextLabel",{
-        Text=" KEYBINDS",Font=Enum.Font.GothamBold,TextSize=9,
-        TextColor3=T.TxMut,TextXAlignment=Enum.TextXAlignment.Left,
-        Position=UDim2.new(0,8,0,0),Size=UDim2.new(1,-8,1,0),
-        BackgroundTransparency=1,ZIndex=502,Parent=kbHdr,
-    })
-    local kbBody=New("Frame",{
-        Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,
-        BackgroundTransparency=1,ZIndex=501,Parent=kbFrame,
-    })
-    VList(kbBody,0)
-
-    kbRebuild=function()
-        for _,c in ipairs(kbBody:GetChildren()) do
-            if not c:IsA("UIListLayout") then c:Destroy() end
-        end
-        if #KBList==0 then kbFrame.Visible=false; return end
-        kbFrame.Visible=true
-        for _,kb in ipairs(KBList) do
-            local row=New("Frame",{Size=UDim2.new(1,0,0,18),BackgroundTransparency=1,ZIndex=502,Parent=kbBody})
-            New("TextLabel",{
-                Text=kb.label,Font=Enum.Font.Code,TextSize=10,TextColor3=T.TxSec,
-                TextXAlignment=Enum.TextXAlignment.Left,
-                Position=UDim2.new(0,10,0,0),Size=UDim2.new(1,-70,1,0),
-                BackgroundTransparency=1,ZIndex=503,Parent=row,
-            })
-            New("TextLabel",{
-                Text="["..kb.keyName.."]",Font=Enum.Font.Code,TextSize=10,
-                TextColor3=T.Accent,TextXAlignment=Enum.TextXAlignment.Right,
-                AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,-8,0,0),
-                Size=UDim2.new(0,62,1,0),
-                BackgroundTransparency=1,ZIndex=503,Parent=row,
-            })
-        end
-    end
-
-    -- ── Notif holder ───────────────────────────────────────────
-    local notifHolder=New("Frame",{
-        AnchorPoint=Vector2.new(1,1),Position=UDim2.new(1,-12,1,-12),
-        Size=UDim2.new(0,295,1,-24),BackgroundTransparency=1,ZIndex=600,Parent=gui,
-    })
-    New("UIListLayout",{Parent=notifHolder,VerticalAlignment=Enum.VerticalAlignment.Bottom,
-        SortOrder=Enum.SortOrder.LayoutOrder,Padding=UDim.new(0,6)})
-
-    -- ── Root window ────────────────────────────────────────────
-    local root=New("Frame",{
-        AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.new(0.5,0,0.5,0),
-        Size=UDim2.new(0,WIN_W,0,WIN_H),
-        BackgroundColor3=T.BG,BorderSizePixel=0,ClipsDescendants=false,Parent=gui,
-    })
-    Crn(8,root)
-    New("ImageLabel",{
-        AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.new(0.5,0,0.5,14),
-        Size=UDim2.new(1,60,1,60),ZIndex=0,BackgroundTransparency=1,
-        Image="rbxassetid://6015897843",ImageColor3=Color3.new(0,0,0),
-        ImageTransparency=0.46,ScaleType=Enum.ScaleType.Slice,
-        SliceCenter=Rect.new(49,49,450,450),Parent=root,
-    })
-    local inner=New("Frame",{
-        Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,
-        ClipsDescendants=true,ZIndex=1,Parent=root,
-    })
-    Crn(8,inner); Stk(T.Border,1,inner)
-
-    -- ── Title bar ──────────────────────────────────────────────
-    local titleBar=New("Frame",{
-        Size=UDim2.new(1,0,0,TITLE_H),BackgroundColor3=T.Panel,
-        BorderSizePixel=0,ZIndex=10,Parent=inner,
-    })
-    New("Frame",{
-        Size=UDim2.new(1,0,0,1),Position=UDim2.new(0,0,1,-1),
-        BackgroundColor3=T.Border,BorderSizePixel=0,ZIndex=11,Parent=titleBar,
-    })
-    New("Frame",{
-        Size=UDim2.new(0,3,0,16),Position=UDim2.new(0,10,0.5,-8),
-        BackgroundColor3=T.Accent,BorderSizePixel=0,ZIndex=12,Parent=titleBar,
-    })
-    New("TextLabel",{
-        Text=title,Font=Enum.Font.GothamBold,TextSize=12,
-        TextColor3=T.TxPrim,TextXAlignment=Enum.TextXAlignment.Left,
-        Position=UDim2.new(0,22,0,0),Size=UDim2.new(1,-110,1,0),
-        BackgroundTransparency=1,ZIndex=12,Parent=titleBar,
-    })
-    local kbBadge=New("Frame",{
-        Size=UDim2.new(0,82,0,20),AnchorPoint=Vector2.new(1,0.5),
-        Position=UDim2.new(1,-10,0.5,0),BackgroundColor3=T.Surface,
-        BorderSizePixel=0,ZIndex=12,Parent=titleBar,
-    })
-    Crn(4,kbBadge); Stk(T.Border,1,kbBadge)
-    local kbBadgeLbl=New("TextLabel",{
-        Text=tKey.Name,Font=Enum.Font.GothamBold,TextSize=9,
-        TextColor3=T.TxSec,TextXAlignment=Enum.TextXAlignment.Center,
-        Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,ZIndex=13,Parent=kbBadge,
-    })
-
-    -- drag
-    do
-        local drag,ds,sp
-        titleBar.InputBegan:Connect(function(i)
-            if i.UserInputType==Enum.UserInputType.MouseButton1 then
-                drag=true;ds=i.Position;sp=root.Position
-            end
-        end)
-        titleBar.InputEnded:Connect(function(i)
-            if i.UserInputType==Enum.UserInputType.MouseButton1 then drag=false end
-        end)
-        UIS.InputChanged:Connect(function(i)
-            if drag and i.UserInputType==Enum.UserInputType.MouseMovement then
-                local d=i.Position-ds
-                root.Position=UDim2.new(sp.X.Scale,sp.X.Offset+d.X,sp.Y.Scale,sp.Y.Offset+d.Y)
-            end
-        end)
-    end
-
-    -- ── Content area & Tab bar ─────────────────────────────────
-    local contentArea=New("Frame",{
-        Size=UDim2.new(1,0,0,BODY_H),Position=UDim2.new(0,0,0,TITLE_H),
-        BackgroundColor3=T.BG,BorderSizePixel=0,ClipsDescendants=true,ZIndex=2,Parent=inner,
-    })
-    local tabBarOuter=New("Frame",{
-        Size=UDim2.new(1,0,0,TAB_H+1),Position=UDim2.new(0,0,1,-TAB_H-1),
-        BackgroundColor3=T.TabBG,BorderSizePixel=0,ZIndex=10,Parent=inner,
-    })
-    New("Frame",{
-        Size=UDim2.new(1,0,0,1),BackgroundColor3=T.Border,
-        BorderSizePixel=0,ZIndex=11,Parent=tabBarOuter,
-    })
-    local tabRow=New("Frame",{
-        Size=UDim2.new(1,0,1,-1),Position=UDim2.new(0,0,0,1),
-        BackgroundTransparency=1,ZIndex=11,Parent=tabBarOuter,
-    })
-    New("UIListLayout",{
-        Parent=tabRow,FillDirection=Enum.FillDirection.Horizontal,
-        HorizontalAlignment=Enum.HorizontalAlignment.Center,
-        VerticalAlignment=Enum.VerticalAlignment.Center,
-        SortOrder=Enum.SortOrder.LayoutOrder,Padding=UDim.new(0,0),
-    })
-
-    -- ── Toggle (window only, watermark stays) ─────────────────
-    local visible=true
-    UIS.InputBegan:Connect(function(i,gp)
-        if gp then return end
-        if i.KeyCode==tKey then
-            visible=not visible
-            root.Visible=visible
-            -- watermark & keybind list intentionally stay visible
-        end
-    end)
-
-    -- ════════════════════════════════════════════════════════
-    --  Window object
-    -- ════════════════════════════════════════════════════════
-    local Win={
-        _tabs={},_activeTab=nil,
-        _contentArea=contentArea,
-        _tabRow=tabRow,
-        _notifHolder=notifHolder,
-        _gui=gui,
-        _kbBadgeLbl=kbBadgeLbl,
-    }
-
-    function Win:SetKey(k)
-        tKey=k; self._kbBadgeLbl.Text=k.Name
-    end
-
-    function Win:_switch(tab)
-        if self._activeTab==tab then return end
-        if self._activeTab then
-            local o=self._activeTab
-            if o._frame then o._frame.Visible=false end
-            Tw(o._btn,{BackgroundTransparency=1},0.14):Play()
-            o._line.Visible=false
-            Tw(o._lbl,{TextColor3=T.TxMut},0.14):Play()
-        end
-        self._activeTab=tab
-        if tab._frame then tab._frame.Visible=true end
-        tab._line.Visible=true
-        Tw(tab._btn,{BackgroundTransparency=0,BackgroundColor3=T.ActTab},0.14):Play()
-        Tw(tab._lbl,{TextColor3=T.TxPrim},0.14):Play()
-    end
-
-    -- ════════════════════════════════════════════════════════
-    --  NewTab
-    -- ════════════════════════════════════════════════════════
-    function Win:NewTab(name)
-        local btn=New("TextButton",{
-            Text="",Size=UDim2.new(0,92,1,0),
-            BackgroundColor3=T.ActTab,BackgroundTransparency=1,
-            AutoButtonColor=false,ZIndex=12,Parent=self._tabRow,
-        })
-        local line=New("Frame",{
-            Size=UDim2.new(0.55,0,0,2),AnchorPoint=Vector2.new(0.5,0),
-            Position=UDim2.new(0.5,0,0,0),BackgroundColor3=T.Accent,
-            BorderSizePixel=0,Visible=false,ZIndex=15,Parent=btn,
-        })
-        Crn(1,line)
-        local lbl=New("TextLabel",{
-            Text=name,Font=Enum.Font.GothamSemibold,TextSize=11,
-            TextColor3=T.TxMut,AnchorPoint=Vector2.new(0.5,0.5),
-            Position=UDim2.new(0.5,0,0.5,0),Size=UDim2.new(1,-4,1,0),
-            TextXAlignment=Enum.TextXAlignment.Center,
-            BackgroundTransparency=1,ZIndex=13,Parent=btn,
-        })
-
-        local frame=New("ScrollingFrame",{
-            Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,
-            BorderSizePixel=0,ScrollBarThickness=3,ScrollBarImageColor3=T.Scroll,
-            CanvasSize=UDim2.new(0,0,0,0),AutomaticCanvasSize=Enum.AutomaticSize.Y,
-            Visible=false,ZIndex=3,Parent=self._contentArea,
-        })
-        local innerPad=New("Frame",{
-            Size=UDim2.new(1,-6,0,0),AutomaticSize=Enum.AutomaticSize.Y,
-            BackgroundTransparency=1,ZIndex=3,Parent=frame,
-        })
-        Pad(10,0,10,10,innerPad)
-        local colHolder=New("Frame",{
-            Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,
-            BackgroundTransparency=1,ZIndex=3,Parent=innerPad,
-        })
-        New("UIListLayout",{
-            Parent=colHolder,FillDirection=Enum.FillDirection.Horizontal,
-            VerticalAlignment=Enum.VerticalAlignment.Top,
-            HorizontalAlignment=Enum.HorizontalAlignment.Left,
-            SortOrder=Enum.SortOrder.LayoutOrder,Padding=UDim.new(0,10),
-        })
-        local colA=New("Frame",{
-            Size=UDim2.new(0,COL_W,0,0),AutomaticSize=Enum.AutomaticSize.Y,
-            BackgroundTransparency=1,ZIndex=3,Parent=colHolder,
-        })
-        VList(colA,10)
-        local colB=New("Frame",{
-            Size=UDim2.new(0,COL_W,0,0),AutomaticSize=Enum.AutomaticSize.Y,
-            BackgroundTransparency=1,ZIndex=3,Parent=colHolder,
-        })
-        VList(colB,10)
-
-        local tab={
-            _btn=btn,_lbl=lbl,_line=line,
-            _frame=frame,_colA=colA,_colB=colB,
-            _secCount=0,_win=self,
-        }
-        btn.MouseEnter:Connect(function()
-            if self._activeTab~=tab then
-                Tw(btn,{BackgroundTransparency=0.65,BackgroundColor3=T.ActTab},0.12):Play()
-                Tw(lbl,{TextColor3=T.TxSec},0.12):Play()
-            end
-        end)
-        btn.MouseLeave:Connect(function()
-            if self._activeTab~=tab then
-                Tw(btn,{BackgroundTransparency=1},0.12):Play()
-                Tw(lbl,{TextColor3=T.TxMut},0.12):Play()
-            end
-        end)
-        btn.MouseButton1Click:Connect(function() self:_switch(tab) end)
-        table.insert(self._tabs,tab)
-        if #self._tabs==1 then self:_switch(tab) end
-
-        -- ════════════════════════════════════════════════════
-        --  NewSection
-        -- ════════════════════════════════════════════════════
-        function tab:NewSection(name)
-            self._secCount=self._secCount+1
-            local col=(self._secCount%2==1) and self._colA or self._colB
-
-            local card=New("Frame",{
-                Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,
-                BackgroundColor3=T.Card,BorderSizePixel=0,ZIndex=4,Parent=col,
-            })
-            Crn(6,card); Stk(T.Border,1,card)
-
-            local hdr=New("Frame",{
-                Size=UDim2.new(1,0,0,28),BackgroundColor3=T.Surface,
-                BorderSizePixel=0,ZIndex=5,Parent=card,
-            })
-            Crn(6,hdr)
-            New("Frame",{Size=UDim2.new(1,0,0,8),Position=UDim2.new(0,0,1,-8),
-                BackgroundColor3=T.Surface,BorderSizePixel=0,ZIndex=6,Parent=hdr})
-            New("Frame",{Size=UDim2.new(0,2,0,14),Position=UDim2.new(0,8,0.5,-7),
-                BackgroundColor3=T.Accent,BorderSizePixel=0,ZIndex=7,Parent=hdr})
-            New("TextLabel",{
-                Text=name,Font=Enum.Font.GothamBold,TextSize=10,
-                TextColor3=T.TxSec,TextXAlignment=Enum.TextXAlignment.Left,
-                Position=UDim2.new(0,17,0,0),Size=UDim2.new(1,-21,1,0),
-                BackgroundTransparency=1,ZIndex=7,Parent=hdr,
-            })
-
-            local elems=New("Frame",{
-                Size=UDim2.new(1,0,0,0),AutomaticSize=Enum.AutomaticSize.Y,
-                Position=UDim2.new(0,0,0,28),BackgroundTransparency=1,ZIndex=5,Parent=card,
-            })
-            VList(elems,0)
-
-            -- row helpers
-            local function Row(h)
-                local r=New("Frame",{
-                    Size=UDim2.new(1,0,0,h or 30),
-                    BackgroundTransparency=1,ZIndex=6,Parent=elems,
-                })
-                New("Frame",{
-                    Size=UDim2.new(1,-16,0,1),Position=UDim2.new(0,8,1,-1),
-                    BackgroundColor3=T.BdDim,BackgroundTransparency=0.5,
-                    BorderSizePixel=0,ZIndex=6,Parent=r,
-                })
-                return r
-            end
-            local function RowLabel(row,text,info)
-                New("TextLabel",{
-                    Text=text,Font=Enum.Font.Gotham,TextSize=11,
-                    TextColor3=T.TxPrim,TextXAlignment=Enum.TextXAlignment.Left,
-                    Position=UDim2.new(0,10,0,1),Size=UDim2.new(0.54,0,0,15),
-                    BackgroundTransparency=1,ZIndex=7,Parent=row,
-                })
-                if info and info~="" then
-                    New("TextLabel",{
-                        Text=info,Font=Enum.Font.Gotham,TextSize=9,
-                        TextColor3=T.TxInfo,TextXAlignment=Enum.TextXAlignment.Left,
-                        Position=UDim2.new(0,10,0,16),Size=UDim2.new(0.54,0,0,12),
-                        BackgroundTransparency=1,ZIndex=7,Parent=row,
-                    })
-                end
-            end
-
-            local Sec={_elems=elems}
-
-            -- NewButton
-            function Sec:NewButton(name,info,cb)
-                local r=Row(info~="" and 42 or 30)
-                local btn=New("TextButton",{Text="",Size=UDim2.new(1,0,1,0),
-                    BackgroundTransparency=1,AutoButtonColor=false,ZIndex=7,Parent=r})
-                RowLabel(r,name,info)
-                New("TextLabel",{Text="›",Font=Enum.Font.GothamBold,TextSize=14,
-                    TextColor3=T.TxMut,AnchorPoint=Vector2.new(1,0.5),
-                    Position=UDim2.new(1,-10,0.5,0),Size=UDim2.new(0,12,1,0),
-                    BackgroundTransparency=1,ZIndex=8,Parent=btn})
-                btn.MouseEnter:Connect(function()
-                    Tw(r,{BackgroundColor3=T.Hover,BackgroundTransparency=0},0.1):Play()
-                end)
-                btn.MouseLeave:Connect(function()
-                    Tw(r,{BackgroundTransparency=1},0.1):Play()
-                end)
-                btn.MouseButton1Click:Connect(function() if cb then task.spawn(cb) end end)
-            end
-
-            -- NewToggle
-            function Sec:NewToggle(name,info,cb)
-                local on=false
-                local r=Row(info~="" and 42 or 30)
-                RowLabel(r,name,info)
-                local track=New("TextButton",{Text="",Size=UDim2.new(0,32,0,17),
-                    AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,-10,0.5,0),
-                    BackgroundColor3=T.ChkOff,AutoButtonColor=false,ZIndex=8,Parent=r})
-                Crn(9,track); Stk(T.Border,1,track)
-                local knob=New("Frame",{Size=UDim2.new(0,11,0,11),AnchorPoint=Vector2.new(0,0.5),
-                    Position=UDim2.new(0,3,0.5,0),BackgroundColor3=Color3.new(1,1,1),ZIndex=9,Parent=track})
-                Crn(6,knob)
-                local function upd()
-                    Tw(track,{BackgroundColor3=on and T.Accent or T.ChkOff},0.14):Play()
-                    Tw(knob,{Position=on and UDim2.new(1,-14,0.5,0) or UDim2.new(0,3,0.5,0)},0.14):Play()
-                end
-                track.MouseButton1Click:Connect(function()
-                    on=not on; upd(); if cb then task.spawn(cb,on) end
-                end)
-                return {
-                    Set=function(_,v) on=v;upd();if cb then task.spawn(cb,on) end end,
-                    Get=function(_) return on end,
-                }
-            end
-
-            -- NewSlider
-            function Sec:NewSlider(name,info,maxV,minV,cb)
-                local r=Row(info~="" and 56 or 44)
-                RowLabel(r,name,info)
-                local val=minV or 0
-                local mn=minV or 0; local mx=maxV or 100
-                local trackY=info~="" and 40 or 32
-                local valLbl=New("TextLabel",{Text=tostring(val),Font=Enum.Font.GothamBold,TextSize=10,
-                    TextColor3=T.Accent,TextXAlignment=Enum.TextXAlignment.Right,
-                    AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,-10,0,0),
-                    Size=UDim2.new(0,40,0,22),BackgroundTransparency=1,ZIndex=8,Parent=r})
-                local bg=New("Frame",{Size=UDim2.new(1,-20,0,3),Position=UDim2.new(0,10,0,trackY),
-                    BackgroundColor3=T.Border,BorderSizePixel=0,ZIndex=8,Parent=r})
-                Crn(2,bg)
-                local fill=New("Frame",{Size=UDim2.new(0,0,1,0),BackgroundColor3=T.Accent,
-                    BorderSizePixel=0,ZIndex=9,Parent=bg})
-                Crn(2,fill)
-                local knob=New("Frame",{Size=UDim2.new(0,9,0,9),AnchorPoint=Vector2.new(0.5,0.5),
-                    Position=UDim2.new(0,0,0.5,0),BackgroundColor3=Color3.new(1,1,1),ZIndex=10,Parent=bg})
-                Crn(5,knob); Stk(T.Accent,2,knob)
-                local function setVal(v)
-                    val=math.clamp(v,mn,mx)
-                    local rel=(val-mn)/(mx-mn)
-                    fill.Size=UDim2.new(rel,0,1,0)
-                    knob.Position=UDim2.new(rel,0,0.5,0)
-                    valLbl.Text=tostring(val)
-                    if cb then task.spawn(cb,val) end
-                end
-                local drag=false
-                bg.InputBegan:Connect(function(i)
-                    if i.UserInputType==Enum.UserInputType.MouseButton1 then drag=true end
-                end)
-                UIS.InputEnded:Connect(function(i)
-                    if i.UserInputType==Enum.UserInputType.MouseButton1 then drag=false end
-                end)
-                UIS.InputChanged:Connect(function(i)
-                    if not drag or i.UserInputType~=Enum.UserInputType.MouseMovement then return end
-                    local rel=math.clamp((i.Position.X-bg.AbsolutePosition.X)/bg.AbsoluteSize.X,0,1)
-                    setVal(math.floor(mn+(mx-mn)*rel))
-                end)
-                return {Set=function(_,v) setVal(v) end,Get=function(_) return val end}
-            end
-
-            -- NewTextBox
-            function Sec:NewTextBox(name,info,cb)
-                local r=Row(info~="" and 42 or 30)
-                RowLabel(r,name,info)
-                local box=New("TextBox",{PlaceholderText="...",Text="",
-                    Font=Enum.Font.Gotham,TextSize=10,TextColor3=T.TxPrim,
-                    PlaceholderColor3=T.TxMut,TextXAlignment=Enum.TextXAlignment.Left,
-                    Size=UDim2.new(0.44,0,0,20),AnchorPoint=Vector2.new(1,0.5),
-                    Position=UDim2.new(1,-10,0.5,0),BackgroundColor3=T.Surface,
-                    BorderSizePixel=0,ClearTextOnFocus=false,ZIndex=8,Parent=r})
-                Crn(4,box)
-                local bs=New("UIStroke",{Color=T.Border,Thickness=1,Parent=box})
-                Pad(6,6,0,0,box)
-                box.Focused:Connect(function()
-                    Tw(box,{BackgroundColor3=T.Hover},0.12):Play(); bs.Color=T.Accent
-                end)
-                box.FocusLost:Connect(function(enter)
-                    Tw(box,{BackgroundColor3=T.Surface},0.12):Play(); bs.Color=T.Border
-                    if enter and cb then task.spawn(cb,box.Text) end
-                end)
-                return {Get=function(_) return box.Text end,Set=function(_,v) box.Text=v end}
-            end
-
-            -- ── NewKeybind ─────────────────────────────────────
-            -- Right-click anywhere on the row to set mode:
-            --   Toggle   = fires callback once per key press
-            --   Hold     = fires cb(true) on press, cb(false) on release
-            --   Always On = fires callback immediately and stays active
-            function Sec:NewKeybind(name,info,default,cb)
-                local key     = default
-                local binding = false
-                local mode    = "Toggle"   -- current mode
-                local alwaysActive = false
-
-                local hasInfo = info and info~=""
-                local r = Row(hasInfo and 42 or 30)
-                RowLabel(r,name,info)
-
-                -- keybind badge button
-                local kBtn=New("TextButton",{
-                    Text=key and key.Name or "None",
-                    Font=Enum.Font.GothamBold,TextSize=9,TextColor3=T.Accent,
-                    Size=UDim2.new(0.44,0,0,20),AnchorPoint=Vector2.new(1,0.5),
-                    Position=UDim2.new(1,-10,0.5,0),BackgroundColor3=T.Surface,
-                    AutoButtonColor=false,ZIndex=8,Parent=r,
-                })
-                Crn(4,kBtn); Stk(T.Border,1,kBtn)
-
-                -- small mode label under the badge
-                local modeLbl=New("TextLabel",{
-                    Text="● Toggle",Font=Enum.Font.Gotham,TextSize=8,
-                    TextColor3=T.TxMut,TextXAlignment=Enum.TextXAlignment.Right,
-                    AnchorPoint=Vector2.new(1,0),Position=UDim2.new(1,-10,1,-14),
-                    Size=UDim2.new(0.44,0,0,12),
-                    BackgroundTransparency=1,ZIndex=8,Parent=r,
-                })
-
-                local kbE = kbAdd(name,key)
-
-                -- update badge + mode label
-                local function updateDisplay()
-                    kBtn.Text = key and key.Name or "None"
-                    modeLbl.Text = "● "..mode
-                    modeLbl.TextColor3 = mode=="Toggle" and T.TxMut
-                        or mode=="Hold" and T.Accent
-                        or T.Warn   -- Always On = warning yellow
-                end
-
-                -- click badge to rebind
-                kBtn.MouseButton1Click:Connect(function()
-                    if mode=="Always On" then return end  -- can't rebind while always-on
-                    binding=true
-                    kBtn.Text="..."
-                    kBtn.TextColor3=T.Warn
-                end)
-
-                -- right-click anywhere on the row → mode context menu
-                r.InputBegan:Connect(function(i)
-                    if i.UserInputType==Enum.UserInputType.MouseButton2 then
-                        MakeCtxMenu(r, kBtn,
-                            {"Toggle","Hold","Always On"},
-                            function() return mode end,
-                            function(picked)
-                                mode = picked
-                                alwaysActive = (mode == "Always On")
-                                updateDisplay()
-                                -- Always On: fire immediately and keep firing
-                                if alwaysActive and cb then task.spawn(cb,true) end
-                            end
-                        )
-                    end
-                end)
-
-                -- global input handler — handles all three modes
-                UIS.InputBegan:Connect(function(i,gp)
-                    if binding and not gp then
-                        -- rebind
-                        binding = false
-                        key = i.KeyCode
-                        kBtn.TextColor3 = T.Accent
-                        kbUpd(kbE,key)
-                        updateDisplay()
-                        return
-                    end
-                    if not key or i.KeyCode~=key or gp then return end
-                    if mode=="Toggle" then
-                        if cb then task.spawn(cb,key) end
-                    elseif mode=="Hold" then
-                        if cb then task.spawn(cb,true) end
-                    end
-                    -- Always On is handled at selection time, not on key press
-                end)
-
-                UIS.InputEnded:Connect(function(i)
-                    if not key or i.KeyCode~=key then return end
-                    if mode=="Hold" and cb then
-                        task.spawn(cb,false)
-                    end
-                end)
-
-                updateDisplay()
-
-                return {
-                    Get    = function(_) return key end,
-                    GetMode= function(_) return mode end,
-                    Set    = function(_,k)
-                        key=k; kbUpd(kbE,k); updateDisplay()
-                    end,
-                }
-            end
-
-            -- NewDropdown
-            function Sec:NewDropdown(name,info,options,cb)
-                local sel=options[1] or ""; local open=false
-                local hasInfo=info and info~=""
-                local r=Row(hasInfo and 42 or 30)
-                RowLabel(r,name,info)
-                local dBtn=New("TextButton",{Text="",Size=UDim2.new(0.44,0,0,20),
-                    AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,-10,0.5,0),
-                    BackgroundColor3=T.Surface,AutoButtonColor=false,ZIndex=8,Parent=r})
-                Crn(4,dBtn); Stk(T.Border,1,dBtn)
-                local selLbl=New("TextLabel",{Text=sel,Font=Enum.Font.Gotham,TextSize=10,
-                    TextColor3=T.TxPrim,TextXAlignment=Enum.TextXAlignment.Left,
-                    Position=UDim2.new(0,6,0,0),Size=UDim2.new(1,-8,1,0),
-                    BackgroundTransparency=1,ZIndex=9,Parent=dBtn})
-                local panH=math.min(#options,6)*24+6
-                local panel=New("Frame",{Size=UDim2.new(0.44,0,0,panH),AnchorPoint=Vector2.new(1,0),
-                    Position=UDim2.new(1,-10,1,2),BackgroundColor3=T.Panel,
-                    BorderSizePixel=0,Visible=false,ZIndex=60,ClipsDescendants=true,Parent=r})
-                Crn(5,panel); Stk(T.Border,1,panel)
-                local pScr=New("ScrollingFrame",{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,
-                    BorderSizePixel=0,ScrollBarThickness=2,ScrollBarImageColor3=T.Scroll,
-                    CanvasSize=UDim2.new(0,0,0,0),AutomaticCanvasSize=Enum.AutomaticSize.Y,
-                    ZIndex=61,Parent=panel})
-                VList(pScr,0); Pad(4,4,3,3,pScr)
-                local function buildOpts()
-                    for _,c in ipairs(pScr:GetChildren()) do
-                        if c:IsA("TextButton") then c:Destroy() end
-                    end
-                    for _,opt in ipairs(options) do
-                        local ob=New("TextButton",{Text=opt,Font=Enum.Font.Gotham,TextSize=10,
-                            TextColor3=opt==sel and T.Accent or T.TxPrim,
-                            TextXAlignment=Enum.TextXAlignment.Left,
-                            Size=UDim2.new(1,0,0,24),BackgroundColor3=T.Hover,
-                            BackgroundTransparency=1,AutoButtonColor=false,ZIndex=62,Parent=pScr})
-                        Crn(3,ob); Pad(8,8,0,0,ob)
-                        ob.MouseEnter:Connect(function() Tw(ob,{BackgroundTransparency=0},0.1):Play() end)
-                        ob.MouseLeave:Connect(function() Tw(ob,{BackgroundTransparency=1},0.1):Play() end)
-                        ob.MouseButton1Click:Connect(function()
-                            sel=opt;selLbl.Text=opt;open=false;panel.Visible=false
-                            buildOpts(); if cb then task.spawn(cb,opt) end
-                        end)
-                    end
-                end
-                buildOpts()
-                dBtn.MouseButton1Click:Connect(function()
-                    open=not open; panel.Visible=open
-                end)
-                return {
-                    Get=function(_) return sel end,
-                    Set=function(_,v) sel=v;selLbl.Text=v;buildOpts() end,
-                    Refresh=function(_,o2) options=o2;buildOpts() end,
-                }
-            end
-
-            -- NewColorPicker
-            function Sec:NewColorPicker(name,info,default,cb)
-                local color=default or Color3.fromRGB(255,50,50)
-                local open=false; local h,s,v=color:ToHSV()
-                local hasInfo=info and info~=""
-                local r=Row(hasInfo and 42 or 30)
-                RowLabel(r,name,info)
-                local sw=New("TextButton",{Text="",Size=UDim2.new(0,28,0,18),
-                    AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,-10,0.5,0),
-                    BackgroundColor3=color,AutoButtonColor=false,ZIndex=8,Parent=r})
-                Crn(4,sw); Stk(T.Border,1,sw)
-                local pp=New("Frame",{Size=UDim2.new(0,160,0,134),AnchorPoint=Vector2.new(1,0),
-                    Position=UDim2.new(1,-10,1,4),BackgroundColor3=T.Panel,
-                    BorderSizePixel=0,Visible=false,ZIndex=70,Parent=r})
-                Crn(7,pp); Stk(T.Border,1,pp); Pad(8,8,8,8,pp)
-                local hBar=New("ImageLabel",{Image="rbxassetid://2615689002",Size=UDim2.new(1,0,0,13),
-                    BackgroundTransparency=1,ZIndex=71,Parent=pp})
-                Crn(4,hBar)
-                local hC=New("Frame",{Size=UDim2.new(0,5,1,4),AnchorPoint=Vector2.new(0.5,0.5),
-                    Position=UDim2.new(h,0,0.5,0),BackgroundColor3=Color3.new(1,1,1),ZIndex=72,Parent=hBar})
-                Crn(2,hC)
-                local svC=New("ImageLabel",{Image="rbxassetid://2615689003",Size=UDim2.new(1,0,0,85),
-                    Position=UDim2.new(0,0,0,20),BackgroundColor3=Color3.fromHSV(h,1,1),ZIndex=71,Parent=pp})
-                Crn(4,svC)
-                local svK=New("Frame",{Size=UDim2.new(0,9,0,9),AnchorPoint=Vector2.new(0.5,0.5),
-                    Position=UDim2.new(s,0,1-v,0),BackgroundColor3=Color3.new(1,1,1),ZIndex=72,Parent=svC})
-                Crn(5,svK); Stk(Color3.new(0,0,0),1,svK)
-                local function upd()
-                    color=Color3.fromHSV(h,s,v)
-                    sw.BackgroundColor3=color; svC.BackgroundColor3=Color3.fromHSV(h,1,1)
-                    hC.Position=UDim2.new(h,0,0.5,0); svK.Position=UDim2.new(s,0,1-v,0)
-                    if cb then task.spawn(cb,color) end
-                end
-                local dH,dSV=false,false
-                hBar.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 then dH=true end end)
-                svC.InputBegan:Connect(function(i) if i.UserInputType==Enum.UserInputType.MouseButton1 then dSV=true end end)
-                UIS.InputEnded:Connect(function(i)
-                    if i.UserInputType==Enum.UserInputType.MouseButton1 then dH=false;dSV=false end
-                end)
-                UIS.InputChanged:Connect(function(i)
-                    if i.UserInputType~=Enum.UserInputType.MouseMovement then return end
-                    if dH then h=math.clamp((i.Position.X-hBar.AbsolutePosition.X)/hBar.AbsoluteSize.X,0,1);upd()
-                    elseif dSV then
-                        s=math.clamp((i.Position.X-svC.AbsolutePosition.X)/svC.AbsoluteSize.X,0,1)
-                        v=1-math.clamp((i.Position.Y-svC.AbsolutePosition.Y)/svC.AbsoluteSize.Y,0,1);upd()
-                    end
-                end)
-                sw.MouseButton1Click:Connect(function() open=not open;pp.Visible=open end)
-                return {Get=function(_) return color end,Set=function(_,c) color=c;h,s,v=c:ToHSV();upd() end}
-            end
-
-            -- NewDivider
-            function Sec:NewDivider(label)
-                local r=New("Frame",{Size=UDim2.new(1,0,0,16),BackgroundTransparency=1,ZIndex=6,Parent=elems})
-                New("Frame",{Size=UDim2.new(1,-16,0,1),Position=UDim2.new(0,8,0.5,0),
-                    BackgroundColor3=T.Border,BorderSizePixel=0,ZIndex=7,Parent=r})
-                if label and label~="" then
-                    New("TextLabel",{Text=label,Font=Enum.Font.GothamBold,TextSize=8,
-                        TextColor3=T.TxMut,TextXAlignment=Enum.TextXAlignment.Center,
-                        AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.new(0.5,0,0.5,0),
-                        Size=UDim2.new(0.5,0,1,0),BackgroundColor3=T.Card,
-                        ZIndex=8,Parent=r})
-                end
-            end
-
-            return Sec
-        end  -- NewSection
-        return tab
-    end  -- NewTab
-
-    -- Notify
-    function Win:Notify(ttl,msg,dur)
-        dur=dur or 4
-        local card=New("Frame",{Size=UDim2.new(1,0,0,56),BackgroundColor3=T.Panel,
-            BackgroundTransparency=0.04,ClipsDescendants=true,ZIndex=601,Parent=self._notifHolder})
-        Crn(6,card); Stk(T.Border,1,card)
-        New("Frame",{Size=UDim2.new(0,2,1,0),BackgroundColor3=T.Accent,BorderSizePixel=0,ZIndex=602,Parent=card})
-        New("TextLabel",{Text=ttl,Font=Enum.Font.GothamBold,TextSize=11,TextColor3=T.TxPrim,
-            TextXAlignment=Enum.TextXAlignment.Left,Position=UDim2.new(0,10,0,6),
-            Size=UDim2.new(1,-14,0,14),BackgroundTransparency=1,ZIndex=603,Parent=card})
-        New("TextLabel",{Text=msg,Font=Enum.Font.Gotham,TextSize=10,TextColor3=T.TxSec,
-            TextXAlignment=Enum.TextXAlignment.Left,TextWrapped=true,
-            Position=UDim2.new(0,10,0,22),Size=UDim2.new(1,-14,0,26),
-            BackgroundTransparency=1,ZIndex=603,Parent=card})
-        local prog=New("Frame",{Size=UDim2.new(1,0,0,2),Position=UDim2.new(0,0,1,-2),
-            BackgroundColor3=T.Accent,BorderSizePixel=0,ZIndex=604,Parent=card})
-        Tw(prog,{Size=UDim2.new(0,0,0,2)},dur,Enum.EasingStyle.Linear):Play()
-        card.Position=UDim2.new(1,10,0,0)
-        Tw(card,{Position=UDim2.new(0,0,0,0)},0.25):Play()
-        task.delay(dur,function()
-            Tw(card,{BackgroundTransparency=1,Size=UDim2.new(1,0,0,0)},0.2):Play()
-            task.delay(0.22,function() card:Destroy() end)
-        end)
-    end
-
-    return Win
+local function Stroke(color, thickness, parent)
+	local o = Instance.new("UIStroke");
+	o.Color = color;
+	o.Thickness = thickness or 1;
+	o.Parent = parent;
 end
 
-return UI
+local function Padding(l, r, t, b, parent)
+	local o = Instance.new("UIPadding");
+	o.PaddingLeft = UDim.new(0, l);
+	o.PaddingRight = UDim.new(0, r);
+	o.PaddingTop = UDim.new(0, t);
+	o.PaddingBottom = UDim.new(0, b);
+	o.Parent = parent;
+end
+
+local function ListLayout(parent, gap)
+	local o = Instance.new("UIListLayout");
+	o.SortOrder = Enum.SortOrder.LayoutOrder;
+	o.Padding = UDim.new(0, gap or 0);
+	o.FillDirection = Enum.FillDirection.Vertical;
+	o.HorizontalAlignment = Enum.HorizontalAlignment.Left;
+	o.Parent = parent;
+end
+
+G2L["Theme"] = {
+	BG      = Color3.fromRGB(23, 23, 25);
+	Panel   = Color3.fromRGB(29, 29, 32);
+	Surface = Color3.fromRGB(36, 36, 40);
+	Card    = Color3.fromRGB(31, 31, 35);
+	Hover   = Color3.fromRGB(42, 42, 48);
+	Border  = Color3.fromRGB(50, 50, 56);
+	BdDim   = Color3.fromRGB(38, 38, 44);
+	Accent  = Color3.fromRGB(78, 92, 235);
+	TxPrim  = Color3.fromRGB(210, 210, 215);
+	TxSec   = Color3.fromRGB(130, 130, 148);
+	TxMut   = Color3.fromRGB(70, 70, 84);
+	TxInfo  = Color3.fromRGB(100, 100, 118);
+	TabBG   = Color3.fromRGB(18, 18, 21);
+	ActTab  = Color3.fromRGB(34, 34, 39);
+	ChkOff  = Color3.fromRGB(44, 44, 54);
+	Warn    = Color3.fromRGB(210, 155, 35);
+	Scroll  = Color3.fromRGB(55, 55, 66);
+	WMBG    = Color3.fromRGB(14, 14, 16);
+};
+
+local T = G2L["Theme"];
+
+G2L.KBList = {};
+G2L.KBRebuild = nil;
+
+local function KBAdd(label, key)
+	local e = {label = label, keyName = key and key.Name or "None"};
+	table.insert(G2L.KBList, e);
+	if G2L.KBRebuild then G2L.KBRebuild(); end
+	return e;
+end
+
+local function KBUpdate(e, key)
+	e.keyName = key and key.Name or "None";
+	if G2L.KBRebuild then G2L.KBRebuild(); end
+end
+
+G2L.ActiveCtx = nil;
+
+local function CloseCtx()
+	if G2L.ActiveCtx then G2L.ActiveCtx:Destroy(); G2L.ActiveCtx = nil; end
+end
+
+UserInputService.InputBegan:Connect(function(i, gp)
+	if i.UserInputType == Enum.UserInputType.MouseButton1 then
+		task.defer(CloseCtx);
+	end
+end);
+
+local function MakeCtxMenu(parent, options, currentFn, onPick)
+	CloseCtx();
+
+	G2L["CtxMenu"] = Instance.new("Frame");
+	G2L["CtxMenu"].Size = UDim2.new(0, 120, 0, #options * 26 + 8);
+	G2L["CtxMenu"].Position = UDim2.new(1, -120, 1, 4);
+	G2L["CtxMenu"].BackgroundColor3 = T.Panel;
+	G2L["CtxMenu"].BorderSizePixel = 0;
+	G2L["CtxMenu"].ZIndex = 200;
+	G2L["CtxMenu"].Parent = parent;
+	Corner(6, G2L["CtxMenu"]);
+	Stroke(T.Border, 1, G2L["CtxMenu"]);
+	Padding(4, 4, 4, 4, G2L["CtxMenu"]);
+	ListLayout(G2L["CtxMenu"], 2);
+	G2L.ActiveCtx = G2L["CtxMenu"];
+
+	for _, opt in ipairs(options) do
+		local isCurrent = (opt == currentFn());
+
+		G2L["CtxBtn_"..opt] = Instance.new("TextButton");
+		G2L["CtxBtn_"..opt].Text = opt;
+		G2L["CtxBtn_"..opt].Font = Enum.Font.Gotham;
+		G2L["CtxBtn_"..opt].TextSize = 11;
+		G2L["CtxBtn_"..opt].TextColor3 = isCurrent and T.Accent or T.TxPrim;
+		G2L["CtxBtn_"..opt].TextXAlignment = Enum.TextXAlignment.Left;
+		G2L["CtxBtn_"..opt].Size = UDim2.new(1, 0, 0, 24);
+		G2L["CtxBtn_"..opt].BackgroundColor3 = T.Hover;
+		G2L["CtxBtn_"..opt].BackgroundTransparency = 1;
+		G2L["CtxBtn_"..opt].AutoButtonColor = false;
+		G2L["CtxBtn_"..opt].ZIndex = 201;
+		G2L["CtxBtn_"..opt].Parent = G2L["CtxMenu"];
+		Corner(4, G2L["CtxBtn_"..opt]);
+		Padding(10, 6, 0, 0, G2L["CtxBtn_"..opt]);
+
+		if isCurrent then
+			G2L["CtxDot_"..opt] = Instance.new("Frame");
+			G2L["CtxDot_"..opt].Size = UDim2.new(0, 4, 0, 4);
+			G2L["CtxDot_"..opt].AnchorPoint = Vector2.new(1, 0.5);
+			G2L["CtxDot_"..opt].Position = UDim2.new(1, -6, 0.5, 0);
+			G2L["CtxDot_"..opt].BackgroundColor3 = T.Accent;
+			G2L["CtxDot_"..opt].BorderSizePixel = 0;
+			G2L["CtxDot_"..opt].ZIndex = 202;
+			G2L["CtxDot_"..opt].Parent = G2L["CtxBtn_"..opt];
+		end
+
+		G2L["CtxBtn_"..opt].MouseEnter:Connect(function()
+			Tween(G2L["CtxBtn_"..opt], {BackgroundTransparency = 0}, 0.1):Play();
+		end);
+		G2L["CtxBtn_"..opt].MouseLeave:Connect(function()
+			Tween(G2L["CtxBtn_"..opt], {BackgroundTransparency = 1}, 0.1):Play();
+		end);
+		local capturedOpt = opt;
+		G2L["CtxBtn_"..opt].MouseButton1Click:Connect(function()
+			CloseCtx();
+			onPick(capturedOpt);
+		end);
+	end
+end
+
+G2L["UI"] = {};
+
+function G2L["UI"].CreateLib(title)
+	local tKey = Enum.KeyCode.RightShift;
+	local WIN_W = 740;
+	local WIN_H = 460;
+	local TAB_H = 48;
+	local TITLE_H = 36;
+	local BODY_H = WIN_H - TITLE_H - TAB_H;
+	local COL_W = math.floor((WIN_W - 6 - 20 - 10) / 2);
+	local GUI_NAME = "UILibrary_"..title;
+
+	local CoreGui = game:GetService("CoreGui");
+	local GuiParent = RunService:IsStudio() and LP.PlayerGui or CoreGui;
+	local existing = GuiParent:FindFirstChild(GUI_NAME);
+	if existing then existing:Destroy(); end
+
+	G2L["ScreenGui"] = Instance.new("ScreenGui");
+	G2L["ScreenGui"].Name = GUI_NAME;
+	G2L["ScreenGui"].ResetOnSpawn = false;
+	G2L["ScreenGui"].ZIndexBehavior = Enum.ZIndexBehavior.Sibling;
+	G2L["ScreenGui"].DisplayOrder = 999;
+	G2L["ScreenGui"].Parent = GuiParent;
+
+	G2L["Watermark1"] = Instance.new("Frame");
+	G2L["Watermark1"].Position = UDim2.new(0, 8, 0, 6);
+	G2L["Watermark1"].Size = UDim2.new(0, 10, 0, 24);
+	G2L["Watermark1"].AutomaticSize = Enum.AutomaticSize.X;
+	G2L["Watermark1"].BackgroundColor3 = T.WMBG;
+	G2L["Watermark1"].BorderSizePixel = 0;
+	G2L["Watermark1"].ZIndex = 500;
+	G2L["Watermark1"].Parent = G2L["ScreenGui"];
+	Corner(4, G2L["Watermark1"]);
+	Stroke(T.Border, 1, G2L["Watermark1"]);
+
+	G2L["WM1AccentBar"] = Instance.new("Frame");
+	G2L["WM1AccentBar"].Size = UDim2.new(0, 2, 1, 0);
+	G2L["WM1AccentBar"].BackgroundColor3 = T.Accent;
+	G2L["WM1AccentBar"].BorderSizePixel = 0;
+	G2L["WM1AccentBar"].ZIndex = 501;
+	G2L["WM1AccentBar"].Parent = G2L["Watermark1"];
+
+	G2L["WM1Label"] = Instance.new("TextLabel");
+	G2L["WM1Label"].Text = "";
+	G2L["WM1Label"].Font = Enum.Font.Code;
+	G2L["WM1Label"].TextSize = 12;
+	G2L["WM1Label"].TextColor3 = T.TxSec;
+	G2L["WM1Label"].TextXAlignment = Enum.TextXAlignment.Left;
+	G2L["WM1Label"].Size = UDim2.new(0, 10, 1, 0);
+	G2L["WM1Label"].AutomaticSize = Enum.AutomaticSize.X;
+	G2L["WM1Label"].BackgroundTransparency = 1;
+	G2L["WM1Label"].ZIndex = 502;
+	G2L["WM1Label"].Parent = G2L["Watermark1"];
+	Padding(10, 12, 0, 0, G2L["WM1Label"]);
+
+	G2L["Watermark2"] = Instance.new("Frame");
+	G2L["Watermark2"].AnchorPoint = Vector2.new(1, 0);
+	G2L["Watermark2"].Position = UDim2.new(1, -8, 0, 6);
+	G2L["Watermark2"].Size = UDim2.new(0, 10, 0, 24);
+	G2L["Watermark2"].AutomaticSize = Enum.AutomaticSize.X;
+	G2L["Watermark2"].BackgroundColor3 = T.WMBG;
+	G2L["Watermark2"].BorderSizePixel = 0;
+	G2L["Watermark2"].ZIndex = 500;
+	G2L["Watermark2"].Parent = G2L["ScreenGui"];
+	Corner(4, G2L["Watermark2"]);
+	Stroke(T.Border, 1, G2L["Watermark2"]);
+
+	G2L["WM2AccentBar"] = Instance.new("Frame");
+	G2L["WM2AccentBar"].AnchorPoint = Vector2.new(1, 0);
+	G2L["WM2AccentBar"].Size = UDim2.new(0, 2, 1, 0);
+	G2L["WM2AccentBar"].Position = UDim2.new(1, 0, 0, 0);
+	G2L["WM2AccentBar"].BackgroundColor3 = T.Accent;
+	G2L["WM2AccentBar"].BorderSizePixel = 0;
+	G2L["WM2AccentBar"].ZIndex = 501;
+	G2L["WM2AccentBar"].Parent = G2L["Watermark2"];
+
+	G2L["WM2Label"] = Instance.new("TextLabel");
+	G2L["WM2Label"].Text = "";
+	G2L["WM2Label"].Font = Enum.Font.Code;
+	G2L["WM2Label"].TextSize = 12;
+	G2L["WM2Label"].TextColor3 = T.TxSec;
+	G2L["WM2Label"].TextXAlignment = Enum.TextXAlignment.Right;
+	G2L["WM2Label"].Size = UDim2.new(0, 10, 1, 0);
+	G2L["WM2Label"].AutomaticSize = Enum.AutomaticSize.X;
+	G2L["WM2Label"].BackgroundTransparency = 1;
+	G2L["WM2Label"].ZIndex = 502;
+	G2L["WM2Label"].Parent = G2L["Watermark2"];
+	Padding(12, 10, 0, 0, G2L["WM2Label"]);
+
+	local fpsA, fpsC, fpsV, lastWM = 0, 0, 60, 0;
+	local function UpdateWatermarks()
+		local ok, ping = pcall(function() return LP:GetNetworkPing(); end);
+		local p = ok and math.round((ping or 0) * 1000) or 0;
+		local t = os.date("*t");
+		G2L["WM1Label"].Text = string.format(" %s  |  %s ", title, LP.Name);
+		G2L["WM2Label"].Text = string.format(" FPS: %d  |  Ping: %dms  |  %02d:%02d ", fpsV, p, t.hour, t.min);
+	end
+
+	RunService.Heartbeat:Connect(function(dt)
+		fpsA = fpsA + (1 / dt);
+		fpsC = fpsC + 1;
+		if fpsC >= 20 then
+			fpsV = math.floor(fpsA / fpsC);
+			fpsA = 0;
+			fpsC = 0;
+		end
+		local now = os.clock();
+		if now - lastWM >= 1 then
+			lastWM = now;
+			UpdateWatermarks();
+		end
+	end);
+	UpdateWatermarks();
+
+	G2L["KBFrame"] = Instance.new("Frame");
+	G2L["KBFrame"].AnchorPoint = Vector2.new(0, 0.5);
+	G2L["KBFrame"].Position = UDim2.new(0, 8, 0.5, 0);
+	G2L["KBFrame"].Size = UDim2.new(0, 192, 0, 0);
+	G2L["KBFrame"].AutomaticSize = Enum.AutomaticSize.Y;
+	G2L["KBFrame"].BackgroundColor3 = T.WMBG;
+	G2L["KBFrame"].BorderSizePixel = 0;
+	G2L["KBFrame"].ZIndex = 500;
+	G2L["KBFrame"].Visible = false;
+	G2L["KBFrame"].Parent = G2L["ScreenGui"];
+	Corner(4, G2L["KBFrame"]);
+	Stroke(T.Border, 1, G2L["KBFrame"]);
+	Padding(0, 0, 4, 4, G2L["KBFrame"]);
+	ListLayout(G2L["KBFrame"], 0);
+
+	G2L["KBHeader"] = Instance.new("Frame");
+	G2L["KBHeader"].Size = UDim2.new(1, 0, 0, 20);
+	G2L["KBHeader"].BackgroundTransparency = 1;
+	G2L["KBHeader"].ZIndex = 501;
+	G2L["KBHeader"].Parent = G2L["KBFrame"];
+
+	G2L["KBHeaderBar"] = Instance.new("Frame");
+	G2L["KBHeaderBar"].Size = UDim2.new(0, 2, 1, 0);
+	G2L["KBHeaderBar"].BackgroundColor3 = T.Accent;
+	G2L["KBHeaderBar"].BorderSizePixel = 0;
+	G2L["KBHeaderBar"].ZIndex = 502;
+	G2L["KBHeaderBar"].Parent = G2L["KBHeader"];
+
+	G2L["KBHeaderLabel"] = Instance.new("TextLabel");
+	G2L["KBHeaderLabel"].Text = " KEYBINDS";
+	G2L["KBHeaderLabel"].Font = Enum.Font.GothamBold;
+	G2L["KBHeaderLabel"].TextSize = 9;
+	G2L["KBHeaderLabel"].TextColor3 = T.TxMut;
+	G2L["KBHeaderLabel"].TextXAlignment = Enum.TextXAlignment.Left;
+	G2L["KBHeaderLabel"].Position = UDim2.new(0, 8, 0, 0);
+	G2L["KBHeaderLabel"].Size = UDim2.new(1, -8, 1, 0);
+	G2L["KBHeaderLabel"].BackgroundTransparency = 1;
+	G2L["KBHeaderLabel"].ZIndex = 502;
+	G2L["KBHeaderLabel"].Parent = G2L["KBHeader"];
+
+	G2L["KBBody"] = Instance.new("Frame");
+	G2L["KBBody"].Size = UDim2.new(1, 0, 0, 0);
+	G2L["KBBody"].AutomaticSize = Enum.AutomaticSize.Y;
+	G2L["KBBody"].BackgroundTransparency = 1;
+	G2L["KBBody"].ZIndex = 501;
+	G2L["KBBody"].Parent = G2L["KBFrame"];
+	ListLayout(G2L["KBBody"], 0);
+
+	G2L.KBRebuild = function()
+		for _, c in ipairs(G2L["KBBody"]:GetChildren()) do
+			if not c:IsA("UIListLayout") then c:Destroy(); end
+		end
+		if #G2L.KBList == 0 then G2L["KBFrame"].Visible = false; return; end
+		G2L["KBFrame"].Visible = true;
+		for i, kb in ipairs(G2L.KBList) do
+			G2L["KBRow_"..i] = Instance.new("Frame");
+			G2L["KBRow_"..i].Size = UDim2.new(1, 0, 0, 18);
+			G2L["KBRow_"..i].BackgroundTransparency = 1;
+			G2L["KBRow_"..i].ZIndex = 502;
+			G2L["KBRow_"..i].Parent = G2L["KBBody"];
+
+			G2L["KBRowLabel_"..i] = Instance.new("TextLabel");
+			G2L["KBRowLabel_"..i].Text = kb.label;
+			G2L["KBRowLabel_"..i].Font = Enum.Font.Code;
+			G2L["KBRowLabel_"..i].TextSize = 10;
+			G2L["KBRowLabel_"..i].TextColor3 = T.TxSec;
+			G2L["KBRowLabel_"..i].TextXAlignment = Enum.TextXAlignment.Left;
+			G2L["KBRowLabel_"..i].Position = UDim2.new(0, 10, 0, 0);
+			G2L["KBRowLabel_"..i].Size = UDim2.new(1, -70, 1, 0);
+			G2L["KBRowLabel_"..i].BackgroundTransparency = 1;
+			G2L["KBRowLabel_"..i].ZIndex = 503;
+			G2L["KBRowLabel_"..i].Parent = G2L["KBRow_"..i];
+
+			G2L["KBRowKey_"..i] = Instance.new("TextLabel");
+			G2L["KBRowKey_"..i].Text = "["..kb.keyName.."]";
+			G2L["KBRowKey_"..i].Font = Enum.Font.Code;
+			G2L["KBRowKey_"..i].TextSize = 10;
+			G2L["KBRowKey_"..i].TextColor3 = T.Accent;
+			G2L["KBRowKey_"..i].TextXAlignment = Enum.TextXAlignment.Right;
+			G2L["KBRowKey_"..i].AnchorPoint = Vector2.new(1, 0);
+			G2L["KBRowKey_"..i].Position = UDim2.new(1, -8, 0, 0);
+			G2L["KBRowKey_"..i].Size = UDim2.new(0, 62, 1, 0);
+			G2L["KBRowKey_"..i].BackgroundTransparency = 1;
+			G2L["KBRowKey_"..i].ZIndex = 503;
+			G2L["KBRowKey_"..i].Parent = G2L["KBRow_"..i];
+		end
+	end;
+
+	G2L["NotifHolder"] = Instance.new("Frame");
+	G2L["NotifHolder"].AnchorPoint = Vector2.new(1, 1);
+	G2L["NotifHolder"].Position = UDim2.new(1, -12, 1, -12);
+	G2L["NotifHolder"].Size = UDim2.new(0, 295, 1, -24);
+	G2L["NotifHolder"].BackgroundTransparency = 1;
+	G2L["NotifHolder"].ZIndex = 600;
+	G2L["NotifHolder"].Parent = G2L["ScreenGui"];
+
+	G2L["NotifLayout"] = Instance.new("UIListLayout");
+	G2L["NotifLayout"].VerticalAlignment = Enum.VerticalAlignment.Bottom;
+	G2L["NotifLayout"].SortOrder = Enum.SortOrder.LayoutOrder;
+	G2L["NotifLayout"].Padding = UDim.new(0, 6);
+	G2L["NotifLayout"].Parent = G2L["NotifHolder"];
+
+	G2L["Root"] = Instance.new("Frame");
+	G2L["Root"].AnchorPoint = Vector2.new(0.5, 0.5);
+	G2L["Root"].Position = UDim2.new(0.5, 0, 0.5, 0);
+	G2L["Root"].Size = UDim2.new(0, WIN_W, 0, WIN_H);
+	G2L["Root"].BackgroundColor3 = T.BG;
+	G2L["Root"].BorderSizePixel = 0;
+	G2L["Root"].ClipsDescendants = false;
+	G2L["Root"].Parent = G2L["ScreenGui"];
+	Corner(8, G2L["Root"]);
+
+	G2L["Shadow"] = Instance.new("ImageLabel");
+	G2L["Shadow"].AnchorPoint = Vector2.new(0.5, 0.5);
+	G2L["Shadow"].Position = UDim2.new(0.5, 0, 0.5, 14);
+	G2L["Shadow"].Size = UDim2.new(1, 60, 1, 60);
+	G2L["Shadow"].ZIndex = 0;
+	G2L["Shadow"].BackgroundTransparency = 1;
+	G2L["Shadow"].Image = "rbxassetid://6015897843";
+	G2L["Shadow"].ImageColor3 = Color3.new(0, 0, 0);
+	G2L["Shadow"].ImageTransparency = 0.46;
+	G2L["Shadow"].ScaleType = Enum.ScaleType.Slice;
+	G2L["Shadow"].SliceCenter = Rect.new(49, 49, 450, 450);
+	G2L["Shadow"].Parent = G2L["Root"];
+
+	G2L["Inner"] = Instance.new("Frame");
+	G2L["Inner"].Size = UDim2.new(1, 0, 1, 0);
+	G2L["Inner"].BackgroundTransparency = 1;
+	G2L["Inner"].ClipsDescendants = true;
+	G2L["Inner"].ZIndex = 1;
+	G2L["Inner"].Parent = G2L["Root"];
+	Corner(8, G2L["Inner"]);
+	Stroke(T.Border, 1, G2L["Inner"]);
+
+	G2L["TitleBar"] = Instance.new("Frame");
+	G2L["TitleBar"].Size = UDim2.new(1, 0, 0, TITLE_H);
+	G2L["TitleBar"].BackgroundColor3 = T.Panel;
+	G2L["TitleBar"].BorderSizePixel = 0;
+	G2L["TitleBar"].ZIndex = 10;
+	G2L["TitleBar"].Parent = G2L["Inner"];
+
+	G2L["TitleBarRule"] = Instance.new("Frame");
+	G2L["TitleBarRule"].Size = UDim2.new(1, 0, 0, 1);
+	G2L["TitleBarRule"].Position = UDim2.new(0, 0, 1, -1);
+	G2L["TitleBarRule"].BackgroundColor3 = T.Border;
+	G2L["TitleBarRule"].BorderSizePixel = 0;
+	G2L["TitleBarRule"].ZIndex = 11;
+	G2L["TitleBarRule"].Parent = G2L["TitleBar"];
+
+	G2L["TitleAccent"] = Instance.new("Frame");
+	G2L["TitleAccent"].Size = UDim2.new(0, 3, 0, 16);
+	G2L["TitleAccent"].Position = UDim2.new(0, 10, 0.5, -8);
+	G2L["TitleAccent"].BackgroundColor3 = T.Accent;
+	G2L["TitleAccent"].BorderSizePixel = 0;
+	G2L["TitleAccent"].ZIndex = 12;
+	G2L["TitleAccent"].Parent = G2L["TitleBar"];
+
+	G2L["TitleLabel"] = Instance.new("TextLabel");
+	G2L["TitleLabel"].Text = title;
+	G2L["TitleLabel"].Font = Enum.Font.GothamBold;
+	G2L["TitleLabel"].TextSize = 12;
+	G2L["TitleLabel"].TextColor3 = T.TxPrim;
+	G2L["TitleLabel"].TextXAlignment = Enum.TextXAlignment.Left;
+	G2L["TitleLabel"].Position = UDim2.new(0, 22, 0, 0);
+	G2L["TitleLabel"].Size = UDim2.new(1, -110, 1, 0);
+	G2L["TitleLabel"].BackgroundTransparency = 1;
+	G2L["TitleLabel"].ZIndex = 12;
+	G2L["TitleLabel"].Parent = G2L["TitleBar"];
+
+	G2L["KeyBadge"] = Instance.new("Frame");
+	G2L["KeyBadge"].Size = UDim2.new(0, 82, 0, 20);
+	G2L["KeyBadge"].AnchorPoint = Vector2.new(1, 0.5);
+	G2L["KeyBadge"].Position = UDim2.new(1, -10, 0.5, 0);
+	G2L["KeyBadge"].BackgroundColor3 = T.Surface;
+	G2L["KeyBadge"].BorderSizePixel = 0;
+	G2L["KeyBadge"].ZIndex = 12;
+	G2L["KeyBadge"].Parent = G2L["TitleBar"];
+	Corner(4, G2L["KeyBadge"]);
+	Stroke(T.Border, 1, G2L["KeyBadge"]);
+
+	G2L["KeyBadgeLabel"] = Instance.new("TextLabel");
+	G2L["KeyBadgeLabel"].Text = tKey.Name;
+	G2L["KeyBadgeLabel"].Font = Enum.Font.GothamBold;
+	G2L["KeyBadgeLabel"].TextSize = 9;
+	G2L["KeyBadgeLabel"].TextColor3 = T.TxSec;
+	G2L["KeyBadgeLabel"].TextXAlignment = Enum.TextXAlignment.Center;
+	G2L["KeyBadgeLabel"].Size = UDim2.new(1, 0, 1, 0);
+	G2L["KeyBadgeLabel"].BackgroundTransparency = 1;
+	G2L["KeyBadgeLabel"].ZIndex = 13;
+	G2L["KeyBadgeLabel"].Parent = G2L["KeyBadge"];
+
+	do
+		local drag, ds, sp;
+		G2L["TitleBar"].InputBegan:Connect(function(i)
+			if i.UserInputType == Enum.UserInputType.MouseButton1 then
+				drag = true; ds = i.Position; sp = G2L["Root"].Position;
+			end
+		end);
+		G2L["TitleBar"].InputEnded:Connect(function(i)
+			if i.UserInputType == Enum.UserInputType.MouseButton1 then drag = false; end
+		end);
+		UserInputService.InputChanged:Connect(function(i)
+			if drag and i.UserInputType == Enum.UserInputType.MouseMovement then
+				local d = i.Position - ds;
+				G2L["Root"].Position = UDim2.new(sp.X.Scale, sp.X.Offset + d.X, sp.Y.Scale, sp.Y.Offset + d.Y);
+			end
+		end);
+	end
+
+	G2L["ContentArea"] = Instance.new("Frame");
+	G2L["ContentArea"].Size = UDim2.new(1, 0, 0, BODY_H);
+	G2L["ContentArea"].Position = UDim2.new(0, 0, 0, TITLE_H);
+	G2L["ContentArea"].BackgroundColor3 = T.BG;
+	G2L["ContentArea"].BorderSizePixel = 0;
+	G2L["ContentArea"].ClipsDescendants = true;
+	G2L["ContentArea"].ZIndex = 2;
+	G2L["ContentArea"].Parent = G2L["Inner"];
+
+	G2L["TabBarOuter"] = Instance.new("Frame");
+	G2L["TabBarOuter"].Size = UDim2.new(1, 0, 0, TAB_H + 1);
+	G2L["TabBarOuter"].Position = UDim2.new(0, 0, 1, -(TAB_H + 1));
+	G2L["TabBarOuter"].BackgroundColor3 = T.TabBG;
+	G2L["TabBarOuter"].BorderSizePixel = 0;
+	G2L["TabBarOuter"].ZIndex = 10;
+	G2L["TabBarOuter"].Parent = G2L["Inner"];
+
+	G2L["TabBarRule"] = Instance.new("Frame");
+	G2L["TabBarRule"].Size = UDim2.new(1, 0, 0, 1);
+	G2L["TabBarRule"].BackgroundColor3 = T.Border;
+	G2L["TabBarRule"].BorderSizePixel = 0;
+	G2L["TabBarRule"].ZIndex = 11;
+	G2L["TabBarRule"].Parent = G2L["TabBarOuter"];
+
+	G2L["TabRow"] = Instance.new("Frame");
+	G2L["TabRow"].Size = UDim2.new(1, 0, 1, -1);
+	G2L["TabRow"].Position = UDim2.new(0, 0, 0, 1);
+	G2L["TabRow"].BackgroundTransparency = 1;
+	G2L["TabRow"].ZIndex = 11;
+	G2L["TabRow"].Parent = G2L["TabBarOuter"];
+
+	G2L["TabRowLayout"] = Instance.new("UIListLayout");
+	G2L["TabRowLayout"].FillDirection = Enum.FillDirection.Horizontal;
+	G2L["TabRowLayout"].HorizontalAlignment = Enum.HorizontalAlignment.Center;
+	G2L["TabRowLayout"].VerticalAlignment = Enum.VerticalAlignment.Center;
+	G2L["TabRowLayout"].SortOrder = Enum.SortOrder.LayoutOrder;
+	G2L["TabRowLayout"].Padding = UDim.new(0, 0);
+	G2L["TabRowLayout"].Parent = G2L["TabRow"];
+
+	local visible = true;
+	UserInputService.InputBegan:Connect(function(i, gp)
+		if gp then return; end
+		if i.KeyCode == tKey then
+			visible = not visible;
+			G2L["Root"].Visible = visible;
+		end
+	end);
+
+	local Win = {};
+	Win._tabs = {};
+	Win._activeTab = nil;
+	Win._notifHolder = G2L["NotifHolder"];
+
+	function Win:SetKey(k)
+		tKey = k;
+		G2L["KeyBadgeLabel"].Text = k.Name;
+	end
+
+	function Win:_switch(tab)
+		if self._activeTab == tab then return; end
+		if self._activeTab then
+			local o = self._activeTab;
+			if o._frame then o._frame.Visible = false; end
+			Tween(o._btn, {BackgroundTransparency = 1}, 0.14):Play();
+			o._line.Visible = false;
+			Tween(o._lbl, {TextColor3 = T.TxMut}, 0.14):Play();
+		end
+		self._activeTab = tab;
+		if tab._frame then tab._frame.Visible = true; end
+		tab._line.Visible = true;
+		Tween(tab._btn, {BackgroundTransparency = 0, BackgroundColor3 = T.ActTab}, 0.14):Play();
+		Tween(tab._lbl, {TextColor3 = T.TxPrim}, 0.14):Play();
+	end
+
+	function Win:NewTab(name)
+		local tabIdx = #self._tabs + 1;
+
+		G2L["TabBtn_"..tabIdx] = Instance.new("TextButton");
+		G2L["TabBtn_"..tabIdx].Text = "";
+		G2L["TabBtn_"..tabIdx].Size = UDim2.new(0, 92, 1, 0);
+		G2L["TabBtn_"..tabIdx].BackgroundColor3 = T.ActTab;
+		G2L["TabBtn_"..tabIdx].BackgroundTransparency = 1;
+		G2L["TabBtn_"..tabIdx].AutoButtonColor = false;
+		G2L["TabBtn_"..tabIdx].ZIndex = 12;
+		G2L["TabBtn_"..tabIdx].Parent = G2L["TabRow"];
+
+		G2L["TabLine_"..tabIdx] = Instance.new("Frame");
+		G2L["TabLine_"..tabIdx].Size = UDim2.new(0.55, 0, 0, 2);
+		G2L["TabLine_"..tabIdx].AnchorPoint = Vector2.new(0.5, 0);
+		G2L["TabLine_"..tabIdx].Position = UDim2.new(0.5, 0, 0, 0);
+		G2L["TabLine_"..tabIdx].BackgroundColor3 = T.Accent;
+		G2L["TabLine_"..tabIdx].BorderSizePixel = 0;
+		G2L["TabLine_"..tabIdx].Visible = false;
+		G2L["TabLine_"..tabIdx].ZIndex = 15;
+		G2L["TabLine_"..tabIdx].Parent = G2L["TabBtn_"..tabIdx];
+		Corner(1, G2L["TabLine_"..tabIdx]);
+
+		G2L["TabLabel_"..tabIdx] = Instance.new("TextLabel");
+		G2L["TabLabel_"..tabIdx].Text = name;
+		G2L["TabLabel_"..tabIdx].Font = Enum.Font.GothamSemibold;
+		G2L["TabLabel_"..tabIdx].TextSize = 11;
+		G2L["TabLabel_"..tabIdx].TextColor3 = T.TxMut;
+		G2L["TabLabel_"..tabIdx].AnchorPoint = Vector2.new(0.5, 0.5);
+		G2L["TabLabel_"..tabIdx].Position = UDim2.new(0.5, 0, 0.5, 0);
+		G2L["TabLabel_"..tabIdx].Size = UDim2.new(1, -4, 1, 0);
+		G2L["TabLabel_"..tabIdx].TextXAlignment = Enum.TextXAlignment.Center;
+		G2L["TabLabel_"..tabIdx].BackgroundTransparency = 1;
+		G2L["TabLabel_"..tabIdx].ZIndex = 13;
+		G2L["TabLabel_"..tabIdx].Parent = G2L["TabBtn_"..tabIdx];
+
+		G2L["TabFrame_"..tabIdx] = Instance.new("ScrollingFrame");
+		G2L["TabFrame_"..tabIdx].Size = UDim2.new(1, 0, 1, 0);
+		G2L["TabFrame_"..tabIdx].BackgroundTransparency = 1;
+		G2L["TabFrame_"..tabIdx].BorderSizePixel = 0;
+		G2L["TabFrame_"..tabIdx].ScrollBarThickness = 3;
+		G2L["TabFrame_"..tabIdx].ScrollBarImageColor3 = T.Scroll;
+		G2L["TabFrame_"..tabIdx].CanvasSize = UDim2.new(0, 0, 0, 0);
+		G2L["TabFrame_"..tabIdx].AutomaticCanvasSize = Enum.AutomaticSize.Y;
+		G2L["TabFrame_"..tabIdx].Visible = false;
+		G2L["TabFrame_"..tabIdx].ZIndex = 3;
+		G2L["TabFrame_"..tabIdx].Parent = G2L["ContentArea"];
+
+		G2L["TabInnerPad_"..tabIdx] = Instance.new("Frame");
+		G2L["TabInnerPad_"..tabIdx].Size = UDim2.new(1, -6, 0, 0);
+		G2L["TabInnerPad_"..tabIdx].AutomaticSize = Enum.AutomaticSize.Y;
+		G2L["TabInnerPad_"..tabIdx].BackgroundTransparency = 1;
+		G2L["TabInnerPad_"..tabIdx].ZIndex = 3;
+		G2L["TabInnerPad_"..tabIdx].Parent = G2L["TabFrame_"..tabIdx];
+		Padding(10, 0, 10, 10, G2L["TabInnerPad_"..tabIdx]);
+
+		G2L["ColHolder_"..tabIdx] = Instance.new("Frame");
+		G2L["ColHolder_"..tabIdx].Size = UDim2.new(1, 0, 0, 0);
+		G2L["ColHolder_"..tabIdx].AutomaticSize = Enum.AutomaticSize.Y;
+		G2L["ColHolder_"..tabIdx].BackgroundTransparency = 1;
+		G2L["ColHolder_"..tabIdx].ZIndex = 3;
+		G2L["ColHolder_"..tabIdx].Parent = G2L["TabInnerPad_"..tabIdx];
+
+		G2L["ColHolderLayout_"..tabIdx] = Instance.new("UIListLayout");
+		G2L["ColHolderLayout_"..tabIdx].FillDirection = Enum.FillDirection.Horizontal;
+		G2L["ColHolderLayout_"..tabIdx].VerticalAlignment = Enum.VerticalAlignment.Top;
+		G2L["ColHolderLayout_"..tabIdx].HorizontalAlignment = Enum.HorizontalAlignment.Left;
+		G2L["ColHolderLayout_"..tabIdx].SortOrder = Enum.SortOrder.LayoutOrder;
+		G2L["ColHolderLayout_"..tabIdx].Padding = UDim.new(0, 10);
+		G2L["ColHolderLayout_"..tabIdx].Parent = G2L["ColHolder_"..tabIdx];
+
+		G2L["ColA_"..tabIdx] = Instance.new("Frame");
+		G2L["ColA_"..tabIdx].Size = UDim2.new(0, COL_W, 0, 0);
+		G2L["ColA_"..tabIdx].AutomaticSize = Enum.AutomaticSize.Y;
+		G2L["ColA_"..tabIdx].BackgroundTransparency = 1;
+		G2L["ColA_"..tabIdx].ZIndex = 3;
+		G2L["ColA_"..tabIdx].Parent = G2L["ColHolder_"..tabIdx];
+		ListLayout(G2L["ColA_"..tabIdx], 10);
+
+		G2L["ColB_"..tabIdx] = Instance.new("Frame");
+		G2L["ColB_"..tabIdx].Size = UDim2.new(0, COL_W, 0, 0);
+		G2L["ColB_"..tabIdx].AutomaticSize = Enum.AutomaticSize.Y;
+		G2L["ColB_"..tabIdx].BackgroundTransparency = 1;
+		G2L["ColB_"..tabIdx].ZIndex = 3;
+		G2L["ColB_"..tabIdx].Parent = G2L["ColHolder_"..tabIdx];
+		ListLayout(G2L["ColB_"..tabIdx], 10);
+
+		local tab = {};
+		tab._btn = G2L["TabBtn_"..tabIdx];
+		tab._lbl = G2L["TabLabel_"..tabIdx];
+		tab._line = G2L["TabLine_"..tabIdx];
+		tab._frame = G2L["TabFrame_"..tabIdx];
+		tab._colA = G2L["ColA_"..tabIdx];
+		tab._colB = G2L["ColB_"..tabIdx];
+		tab._secCount = 0;
+		tab._win = self;
+
+		tab._btn.MouseEnter:Connect(function()
+			if self._activeTab ~= tab then
+				Tween(tab._btn, {BackgroundTransparency = 0.65, BackgroundColor3 = T.ActTab}, 0.12):Play();
+				Tween(tab._lbl, {TextColor3 = T.TxSec}, 0.12):Play();
+			end
+		end);
+		tab._btn.MouseLeave:Connect(function()
+			if self._activeTab ~= tab then
+				Tween(tab._btn, {BackgroundTransparency = 1}, 0.12):Play();
+				Tween(tab._lbl, {TextColor3 = T.TxMut}, 0.12):Play();
+			end
+		end);
+		tab._btn.MouseButton1Click:Connect(function() self:_switch(tab); end);
+		table.insert(self._tabs, tab);
+		if #self._tabs == 1 then self:_switch(tab); end
+
+		function tab:NewSection(name)
+			self._secCount = self._secCount + 1;
+			local secIdx = self._secCount;
+			local col = (secIdx % 2 == 1) and self._colA or self._colB;
+			local sKey = "Sec_t"..tabIdx.."_s"..secIdx;
+
+			G2L[sKey.."Card"] = Instance.new("Frame");
+			G2L[sKey.."Card"].Size = UDim2.new(1, 0, 0, 0);
+			G2L[sKey.."Card"].AutomaticSize = Enum.AutomaticSize.Y;
+			G2L[sKey.."Card"].BackgroundColor3 = T.Card;
+			G2L[sKey.."Card"].BorderSizePixel = 0;
+			G2L[sKey.."Card"].ZIndex = 4;
+			G2L[sKey.."Card"].Parent = col;
+			Corner(6, G2L[sKey.."Card"]);
+			Stroke(T.Border, 1, G2L[sKey.."Card"]);
+
+			G2L[sKey.."Hdr"] = Instance.new("Frame");
+			G2L[sKey.."Hdr"].Size = UDim2.new(1, 0, 0, 28);
+			G2L[sKey.."Hdr"].BackgroundColor3 = T.Surface;
+			G2L[sKey.."Hdr"].BorderSizePixel = 0;
+			G2L[sKey.."Hdr"].ZIndex = 5;
+			G2L[sKey.."Hdr"].Parent = G2L[sKey.."Card"];
+			Corner(6, G2L[sKey.."Hdr"]);
+
+			G2L[sKey.."HdrMask"] = Instance.new("Frame");
+			G2L[sKey.."HdrMask"].Size = UDim2.new(1, 0, 0, 8);
+			G2L[sKey.."HdrMask"].Position = UDim2.new(0, 0, 1, -8);
+			G2L[sKey.."HdrMask"].BackgroundColor3 = T.Surface;
+			G2L[sKey.."HdrMask"].BorderSizePixel = 0;
+			G2L[sKey.."HdrMask"].ZIndex = 6;
+			G2L[sKey.."HdrMask"].Parent = G2L[sKey.."Hdr"];
+
+			G2L[sKey.."HdrBar"] = Instance.new("Frame");
+			G2L[sKey.."HdrBar"].Size = UDim2.new(0, 2, 0, 14);
+			G2L[sKey.."HdrBar"].Position = UDim2.new(0, 8, 0.5, -7);
+			G2L[sKey.."HdrBar"].BackgroundColor3 = T.Accent;
+			G2L[sKey.."HdrBar"].BorderSizePixel = 0;
+			G2L[sKey.."HdrBar"].ZIndex = 7;
+			G2L[sKey.."HdrBar"].Parent = G2L[sKey.."Hdr"];
+
+			G2L[sKey.."HdrLabel"] = Instance.new("TextLabel");
+			G2L[sKey.."HdrLabel"].Text = name;
+			G2L[sKey.."HdrLabel"].Font = Enum.Font.GothamBold;
+			G2L[sKey.."HdrLabel"].TextSize = 10;
+			G2L[sKey.."HdrLabel"].TextColor3 = T.TxSec;
+			G2L[sKey.."HdrLabel"].TextXAlignment = Enum.TextXAlignment.Left;
+			G2L[sKey.."HdrLabel"].Position = UDim2.new(0, 17, 0, 0);
+			G2L[sKey.."HdrLabel"].Size = UDim2.new(1, -21, 1, 0);
+			G2L[sKey.."HdrLabel"].BackgroundTransparency = 1;
+			G2L[sKey.."HdrLabel"].ZIndex = 7;
+			G2L[sKey.."HdrLabel"].Parent = G2L[sKey.."Hdr"];
+
+			G2L[sKey.."Elems"] = Instance.new("Frame");
+			G2L[sKey.."Elems"].Size = UDim2.new(1, 0, 0, 0);
+			G2L[sKey.."Elems"].AutomaticSize = Enum.AutomaticSize.Y;
+			G2L[sKey.."Elems"].Position = UDim2.new(0, 0, 0, 28);
+			G2L[sKey.."Elems"].BackgroundTransparency = 1;
+			G2L[sKey.."Elems"].ZIndex = 5;
+			G2L[sKey.."Elems"].Parent = G2L[sKey.."Card"];
+			ListLayout(G2L[sKey.."Elems"], 0);
+
+			local elems = G2L[sKey.."Elems"];
+			local elemIdx = 0;
+
+			local function Row(h)
+				elemIdx = elemIdx + 1;
+				local rKey = sKey.."Row"..elemIdx;
+
+				G2L[rKey] = Instance.new("Frame");
+				G2L[rKey].Size = UDim2.new(1, 0, 0, h or 30);
+				G2L[rKey].BackgroundTransparency = 1;
+				G2L[rKey].ZIndex = 6;
+				G2L[rKey].Parent = elems;
+
+				G2L[rKey.."Sep"] = Instance.new("Frame");
+				G2L[rKey.."Sep"].Size = UDim2.new(1, -16, 0, 1);
+				G2L[rKey.."Sep"].Position = UDim2.new(0, 8, 1, -1);
+				G2L[rKey.."Sep"].BackgroundColor3 = T.BdDim;
+				G2L[rKey.."Sep"].BackgroundTransparency = 0.5;
+				G2L[rKey.."Sep"].BorderSizePixel = 0;
+				G2L[rKey.."Sep"].ZIndex = 6;
+				G2L[rKey.."Sep"].Parent = G2L[rKey];
+
+				return G2L[rKey];
+			end
+
+			local function RowLabel(row, text, info)
+				local lKey = row.Name.."Lbl";
+				G2L[lKey] = Instance.new("TextLabel");
+				G2L[lKey].Text = text;
+				G2L[lKey].Font = Enum.Font.Gotham;
+				G2L[lKey].TextSize = 11;
+				G2L[lKey].TextColor3 = T.TxPrim;
+				G2L[lKey].TextXAlignment = Enum.TextXAlignment.Left;
+				G2L[lKey].Position = UDim2.new(0, 10, 0, 1);
+				G2L[lKey].Size = UDim2.new(0.54, 0, 0, 15);
+				G2L[lKey].BackgroundTransparency = 1;
+				G2L[lKey].ZIndex = 7;
+				G2L[lKey].Parent = row;
+				if info and info ~= "" then
+					local iKey = row.Name.."Info";
+					G2L[iKey] = Instance.new("TextLabel");
+					G2L[iKey].Text = info;
+					G2L[iKey].Font = Enum.Font.Gotham;
+					G2L[iKey].TextSize = 9;
+					G2L[iKey].TextColor3 = T.TxInfo;
+					G2L[iKey].TextXAlignment = Enum.TextXAlignment.Left;
+					G2L[iKey].Position = UDim2.new(0, 10, 0, 16);
+					G2L[iKey].Size = UDim2.new(0.54, 0, 0, 12);
+					G2L[iKey].BackgroundTransparency = 1;
+					G2L[iKey].ZIndex = 7;
+					G2L[iKey].Parent = row;
+				end
+			end
+
+			local Sec = {};
+			Sec._elems = elems;
+
+			function Sec:NewButton(name, info, cb)
+				local r = Row(info ~= "" and 42 or 30);
+				RowLabel(r, name, info);
+
+				local bKey = r.Name.."Btn";
+				G2L[bKey] = Instance.new("TextButton");
+				G2L[bKey].Text = "";
+				G2L[bKey].Size = UDim2.new(1, 0, 1, 0);
+				G2L[bKey].BackgroundTransparency = 1;
+				G2L[bKey].AutoButtonColor = false;
+				G2L[bKey].ZIndex = 7;
+				G2L[bKey].Parent = r;
+
+				G2L[bKey.."Arrow"] = Instance.new("TextLabel");
+				G2L[bKey.."Arrow"].Text = "›";
+				G2L[bKey.."Arrow"].Font = Enum.Font.GothamBold;
+				G2L[bKey.."Arrow"].TextSize = 14;
+				G2L[bKey.."Arrow"].TextColor3 = T.TxMut;
+				G2L[bKey.."Arrow"].AnchorPoint = Vector2.new(1, 0.5);
+				G2L[bKey.."Arrow"].Position = UDim2.new(1, -10, 0.5, 0);
+				G2L[bKey.."Arrow"].Size = UDim2.new(0, 12, 1, 0);
+				G2L[bKey.."Arrow"].BackgroundTransparency = 1;
+				G2L[bKey.."Arrow"].ZIndex = 8;
+				G2L[bKey.."Arrow"].Parent = G2L[bKey];
+
+				G2L[bKey].MouseEnter:Connect(function()
+					Tween(r, {BackgroundColor3 = T.Hover, BackgroundTransparency = 0}, 0.1):Play();
+				end);
+				G2L[bKey].MouseLeave:Connect(function()
+					Tween(r, {BackgroundTransparency = 1}, 0.1):Play();
+				end);
+				G2L[bKey].MouseButton1Click:Connect(function()
+					if cb then task.spawn(cb); end
+				end);
+			end
+
+			function Sec:NewToggle(name, info, cb)
+				local on = false;
+				local r = Row(info ~= "" and 42 or 30);
+				RowLabel(r, name, info);
+				local tKey2 = r.Name.."Track";
+				local kKey = r.Name.."Knob";
+
+				G2L[tKey2] = Instance.new("TextButton");
+				G2L[tKey2].Text = "";
+				G2L[tKey2].Size = UDim2.new(0, 32, 0, 17);
+				G2L[tKey2].AnchorPoint = Vector2.new(1, 0.5);
+				G2L[tKey2].Position = UDim2.new(1, -10, 0.5, 0);
+				G2L[tKey2].BackgroundColor3 = T.ChkOff;
+				G2L[tKey2].AutoButtonColor = false;
+				G2L[tKey2].ZIndex = 8;
+				G2L[tKey2].Parent = r;
+				Corner(9, G2L[tKey2]);
+				Stroke(T.Border, 1, G2L[tKey2]);
+
+				G2L[kKey] = Instance.new("Frame");
+				G2L[kKey].Size = UDim2.new(0, 11, 0, 11);
+				G2L[kKey].AnchorPoint = Vector2.new(0, 0.5);
+				G2L[kKey].Position = UDim2.new(0, 3, 0.5, 0);
+				G2L[kKey].BackgroundColor3 = Color3.new(1, 1, 1);
+				G2L[kKey].ZIndex = 9;
+				G2L[kKey].Parent = G2L[tKey2];
+				Corner(6, G2L[kKey]);
+
+				local function upd()
+					Tween(G2L[tKey2], {BackgroundColor3 = on and T.Accent or T.ChkOff}, 0.14):Play();
+					Tween(G2L[kKey], {Position = on and UDim2.new(1, -14, 0.5, 0) or UDim2.new(0, 3, 0.5, 0)}, 0.14):Play();
+				end
+
+				G2L[tKey2].MouseButton1Click:Connect(function()
+					on = not on; upd();
+					if cb then task.spawn(cb, on); end
+				end);
+
+				return {
+					Set = function(_, v) on = v; upd(); if cb then task.spawn(cb, on); end end;
+					Get = function(_) return on; end;
+				};
+			end
+
+			function Sec:NewSlider(name, info, maxV, minV, cb)
+				local r = Row(info ~= "" and 56 or 44);
+				RowLabel(r, name, info);
+				local mn = minV or 0;
+				local mx = maxV or 100;
+				local val = mn;
+				local trackY = info ~= "" and 40 or 32;
+				local vKey = r.Name.."ValLbl";
+				local bgKey = r.Name.."TrackBg";
+				local fillKey = r.Name.."Fill";
+				local knobKey = r.Name.."SliderKnob";
+
+				G2L[vKey] = Instance.new("TextLabel");
+				G2L[vKey].Text = tostring(val);
+				G2L[vKey].Font = Enum.Font.GothamBold;
+				G2L[vKey].TextSize = 10;
+				G2L[vKey].TextColor3 = T.Accent;
+				G2L[vKey].TextXAlignment = Enum.TextXAlignment.Right;
+				G2L[vKey].AnchorPoint = Vector2.new(1, 0);
+				G2L[vKey].Position = UDim2.new(1, -10, 0, 0);
+				G2L[vKey].Size = UDim2.new(0, 40, 0, 22);
+				G2L[vKey].BackgroundTransparency = 1;
+				G2L[vKey].ZIndex = 8;
+				G2L[vKey].Parent = r;
+
+				G2L[bgKey] = Instance.new("Frame");
+				G2L[bgKey].Size = UDim2.new(1, -20, 0, 3);
+				G2L[bgKey].Position = UDim2.new(0, 10, 0, trackY);
+				G2L[bgKey].BackgroundColor3 = T.Border;
+				G2L[bgKey].BorderSizePixel = 0;
+				G2L[bgKey].ZIndex = 8;
+				G2L[bgKey].Parent = r;
+				Corner(2, G2L[bgKey]);
+
+				G2L[fillKey] = Instance.new("Frame");
+				G2L[fillKey].Size = UDim2.new(0, 0, 1, 0);
+				G2L[fillKey].BackgroundColor3 = T.Accent;
+				G2L[fillKey].BorderSizePixel = 0;
+				G2L[fillKey].ZIndex = 9;
+				G2L[fillKey].Parent = G2L[bgKey];
+				Corner(2, G2L[fillKey]);
+
+				G2L[knobKey] = Instance.new("Frame");
+				G2L[knobKey].Size = UDim2.new(0, 9, 0, 9);
+				G2L[knobKey].AnchorPoint = Vector2.new(0.5, 0.5);
+				G2L[knobKey].Position = UDim2.new(0, 0, 0.5, 0);
+				G2L[knobKey].BackgroundColor3 = Color3.new(1, 1, 1);
+				G2L[knobKey].ZIndex = 10;
+				G2L[knobKey].Parent = G2L[bgKey];
+				Corner(5, G2L[knobKey]);
+				Stroke(T.Accent, 2, G2L[knobKey]);
+
+				local function setVal(v)
+					val = math.clamp(v, mn, mx);
+					local rel = (val - mn) / (mx - mn);
+					G2L[fillKey].Size = UDim2.new(rel, 0, 1, 0);
+					G2L[knobKey].Position = UDim2.new(rel, 0, 0.5, 0);
+					G2L[vKey].Text = tostring(val);
+					if cb then task.spawn(cb, val); end
+				end
+
+				local drag = false;
+				G2L[bgKey].InputBegan:Connect(function(i)
+					if i.UserInputType == Enum.UserInputType.MouseButton1 then drag = true; end
+				end);
+				UserInputService.InputEnded:Connect(function(i)
+					if i.UserInputType == Enum.UserInputType.MouseButton1 then drag = false; end
+				end);
+				UserInputService.InputChanged:Connect(function(i)
+					if not drag or i.UserInputType ~= Enum.UserInputType.MouseMovement then return; end
+					local rel = math.clamp((i.Position.X - G2L[bgKey].AbsolutePosition.X) / G2L[bgKey].AbsoluteSize.X, 0, 1);
+					setVal(math.floor(mn + (mx - mn) * rel));
+				end);
+
+				return {Set = function(_, v) setVal(v); end; Get = function(_) return val; end};
+			end
+
+			function Sec:NewTextBox(name, info, cb)
+				local r = Row(info ~= "" and 42 or 30);
+				RowLabel(r, name, info);
+				local bKey = r.Name.."TBox";
+				local bsKey = r.Name.."TBoxStroke";
+
+				G2L[bKey] = Instance.new("TextBox");
+				G2L[bKey].PlaceholderText = "...";
+				G2L[bKey].Text = "";
+				G2L[bKey].Font = Enum.Font.Gotham;
+				G2L[bKey].TextSize = 10;
+				G2L[bKey].TextColor3 = T.TxPrim;
+				G2L[bKey].PlaceholderColor3 = T.TxMut;
+				G2L[bKey].TextXAlignment = Enum.TextXAlignment.Left;
+				G2L[bKey].Size = UDim2.new(0.44, 0, 0, 20);
+				G2L[bKey].AnchorPoint = Vector2.new(1, 0.5);
+				G2L[bKey].Position = UDim2.new(1, -10, 0.5, 0);
+				G2L[bKey].BackgroundColor3 = T.Surface;
+				G2L[bKey].BorderSizePixel = 0;
+				G2L[bKey].ClearTextOnFocus = false;
+				G2L[bKey].ZIndex = 8;
+				G2L[bKey].Parent = r;
+				Corner(4, G2L[bKey]);
+				Padding(6, 6, 0, 0, G2L[bKey]);
+
+				G2L[bsKey] = Instance.new("UIStroke");
+				G2L[bsKey].Color = T.Border;
+				G2L[bsKey].Thickness = 1;
+				G2L[bsKey].Parent = G2L[bKey];
+
+				G2L[bKey].Focused:Connect(function()
+					Tween(G2L[bKey], {BackgroundColor3 = T.Hover}, 0.12):Play();
+					G2L[bsKey].Color = T.Accent;
+				end);
+				G2L[bKey].FocusLost:Connect(function(enter)
+					Tween(G2L[bKey], {BackgroundColor3 = T.Surface}, 0.12):Play();
+					G2L[bsKey].Color = T.Border;
+					if enter and cb then task.spawn(cb, G2L[bKey].Text); end
+				end);
+
+				return {Get = function(_) return G2L[bKey].Text; end; Set = function(_, v) G2L[bKey].Text = v; end};
+			end
+
+			function Sec:NewKeybind(name, info, default, cb)
+				local key = default;
+				local binding = false;
+				local mode = "Toggle";
+				local hasInfo = info and info ~= "";
+				local r = Row(hasInfo and 42 or 30);
+				RowLabel(r, name, info);
+				local kbKey = r.Name.."KbBtn";
+				local mlKey = r.Name.."ModeLbl";
+
+				G2L[kbKey] = Instance.new("TextButton");
+				G2L[kbKey].Text = key and key.Name or "None";
+				G2L[kbKey].Font = Enum.Font.GothamBold;
+				G2L[kbKey].TextSize = 9;
+				G2L[kbKey].TextColor3 = T.Accent;
+				G2L[kbKey].Size = UDim2.new(0.44, 0, 0, 20);
+				G2L[kbKey].AnchorPoint = Vector2.new(1, 0.5);
+				G2L[kbKey].Position = UDim2.new(1, -10, 0.5, 0);
+				G2L[kbKey].BackgroundColor3 = T.Surface;
+				G2L[kbKey].AutoButtonColor = false;
+				G2L[kbKey].ZIndex = 8;
+				G2L[kbKey].Parent = r;
+				Corner(4, G2L[kbKey]);
+				Stroke(T.Border, 1, G2L[kbKey]);
+
+				G2L[mlKey] = Instance.new("TextLabel");
+				G2L[mlKey].Text = "● Toggle";
+				G2L[mlKey].Font = Enum.Font.Gotham;
+				G2L[mlKey].TextSize = 8;
+				G2L[mlKey].TextColor3 = T.TxMut;
+				G2L[mlKey].TextXAlignment = Enum.TextXAlignment.Right;
+				G2L[mlKey].AnchorPoint = Vector2.new(1, 0);
+				G2L[mlKey].Position = UDim2.new(1, -10, 1, -14);
+				G2L[mlKey].Size = UDim2.new(0.44, 0, 0, 12);
+				G2L[mlKey].BackgroundTransparency = 1;
+				G2L[mlKey].ZIndex = 8;
+				G2L[mlKey].Parent = r;
+
+				local kbE = KBAdd(name, key);
+
+				local function updateDisplay()
+					G2L[kbKey].Text = key and key.Name or "None";
+					G2L[mlKey].Text = "● " .. mode;
+					G2L[mlKey].TextColor3 = mode == "Toggle" and T.TxMut or mode == "Hold" and T.Accent or T.Warn;
+				end
+
+				G2L[kbKey].MouseButton1Click:Connect(function()
+					if mode == "Always On" then return; end
+					binding = true;
+					G2L[kbKey].Text = "...";
+					G2L[kbKey].TextColor3 = T.Warn;
+				end);
+
+				r.InputBegan:Connect(function(i)
+					if i.UserInputType == Enum.UserInputType.MouseButton2 then
+						MakeCtxMenu(r, {"Toggle", "Hold", "Always On"}, function() return mode; end, function(picked)
+							mode = picked;
+							updateDisplay();
+							if mode == "Always On" and cb then task.spawn(cb, true); end
+						end);
+					end
+				end);
+
+				UserInputService.InputBegan:Connect(function(i, gp)
+					if binding and not gp then
+						binding = false;
+						key = i.KeyCode;
+						G2L[kbKey].TextColor3 = T.Accent;
+						KBUpdate(kbE, key);
+						updateDisplay();
+						return;
+					end
+					if not key or i.KeyCode ~= key or gp then return; end
+					if mode == "Toggle" then
+						if cb then task.spawn(cb, key); end
+					elseif mode == "Hold" then
+						if cb then task.spawn(cb, true); end
+					end
+				end);
+
+				UserInputService.InputEnded:Connect(function(i)
+					if not key or i.KeyCode ~= key then return; end
+					if mode == "Hold" and cb then task.spawn(cb, false); end
+				end);
+
+				updateDisplay();
+
+				return {
+					Get = function(_) return key; end;
+					GetMode = function(_) return mode; end;
+					Set = function(_, k) key = k; KBUpdate(kbE, k); updateDisplay(); end;
+				};
+			end
+
+			function Sec:NewDropdown(name, info, options, cb)
+				local sel = options[1] or "";
+				local open = false;
+				local hasInfo = info and info ~= "";
+				local r = Row(hasInfo and 42 or 30);
+				RowLabel(r, name, info);
+				local dKey = r.Name.."DBtn";
+				local slKey = r.Name.."SelLbl";
+				local panKey = r.Name.."Panel";
+				local pScrKey = r.Name.."PanScroll";
+
+				G2L[dKey] = Instance.new("TextButton");
+				G2L[dKey].Text = "";
+				G2L[dKey].Size = UDim2.new(0.44, 0, 0, 20);
+				G2L[dKey].AnchorPoint = Vector2.new(1, 0.5);
+				G2L[dKey].Position = UDim2.new(1, -10, 0.5, 0);
+				G2L[dKey].BackgroundColor3 = T.Surface;
+				G2L[dKey].AutoButtonColor = false;
+				G2L[dKey].ZIndex = 8;
+				G2L[dKey].Parent = r;
+				Corner(4, G2L[dKey]);
+				Stroke(T.Border, 1, G2L[dKey]);
+
+				G2L[slKey] = Instance.new("TextLabel");
+				G2L[slKey].Text = sel;
+				G2L[slKey].Font = Enum.Font.Gotham;
+				G2L[slKey].TextSize = 10;
+				G2L[slKey].TextColor3 = T.TxPrim;
+				G2L[slKey].TextXAlignment = Enum.TextXAlignment.Left;
+				G2L[slKey].Position = UDim2.new(0, 6, 0, 0);
+				G2L[slKey].Size = UDim2.new(1, -8, 1, 0);
+				G2L[slKey].BackgroundTransparency = 1;
+				G2L[slKey].ZIndex = 9;
+				G2L[slKey].Parent = G2L[dKey];
+
+				G2L[panKey] = Instance.new("Frame");
+				G2L[panKey].Size = UDim2.new(0.44, 0, 0, math.min(#options, 6) * 24 + 6);
+				G2L[panKey].AnchorPoint = Vector2.new(1, 0);
+				G2L[panKey].Position = UDim2.new(1, -10, 1, 2);
+				G2L[panKey].BackgroundColor3 = T.Panel;
+				G2L[panKey].BorderSizePixel = 0;
+				G2L[panKey].Visible = false;
+				G2L[panKey].ZIndex = 60;
+				G2L[panKey].ClipsDescendants = true;
+				G2L[panKey].Parent = r;
+				Corner(5, G2L[panKey]);
+				Stroke(T.Border, 1, G2L[panKey]);
+
+				G2L[pScrKey] = Instance.new("ScrollingFrame");
+				G2L[pScrKey].Size = UDim2.new(1, 0, 1, 0);
+				G2L[pScrKey].BackgroundTransparency = 1;
+				G2L[pScrKey].BorderSizePixel = 0;
+				G2L[pScrKey].ScrollBarThickness = 2;
+				G2L[pScrKey].ScrollBarImageColor3 = T.Scroll;
+				G2L[pScrKey].CanvasSize = UDim2.new(0, 0, 0, 0);
+				G2L[pScrKey].AutomaticCanvasSize = Enum.AutomaticSize.Y;
+				G2L[pScrKey].ZIndex = 61;
+				G2L[pScrKey].Parent = G2L[panKey];
+				ListLayout(G2L[pScrKey], 0);
+				Padding(4, 4, 3, 3, G2L[pScrKey]);
+
+				local function buildOpts()
+					for _, c in ipairs(G2L[pScrKey]:GetChildren()) do
+						if c:IsA("TextButton") then c:Destroy(); end
+					end
+					for _, opt in ipairs(options) do
+						local ob = Instance.new("TextButton");
+						ob.Text = opt;
+						ob.Font = Enum.Font.Gotham;
+						ob.TextSize = 10;
+						ob.TextColor3 = opt == sel and T.Accent or T.TxPrim;
+						ob.TextXAlignment = Enum.TextXAlignment.Left;
+						ob.Size = UDim2.new(1, 0, 0, 24);
+						ob.BackgroundColor3 = T.Hover;
+						ob.BackgroundTransparency = 1;
+						ob.AutoButtonColor = false;
+						ob.ZIndex = 62;
+						ob.Parent = G2L[pScrKey];
+						Corner(3, ob);
+						Padding(8, 8, 0, 0, ob);
+						ob.MouseEnter:Connect(function() Tween(ob, {BackgroundTransparency = 0}, 0.1):Play(); end);
+						ob.MouseLeave:Connect(function() Tween(ob, {BackgroundTransparency = 1}, 0.1):Play(); end);
+						local capturedOpt = opt;
+						ob.MouseButton1Click:Connect(function()
+							sel = capturedOpt;
+							G2L[slKey].Text = capturedOpt;
+							open = false;
+							G2L[panKey].Visible = false;
+							buildOpts();
+							if cb then task.spawn(cb, capturedOpt); end
+						end);
+					end
+				end
+
+				buildOpts();
+				G2L[dKey].MouseButton1Click:Connect(function()
+					open = not open;
+					G2L[panKey].Visible = open;
+				end);
+
+				return {
+					Get = function(_) return sel; end;
+					Set = function(_, v) sel = v; G2L[slKey].Text = v; buildOpts(); end;
+					Refresh = function(_, o2) options = o2; buildOpts(); end;
+				};
+			end
+
+			function Sec:NewColorPicker(name, info, default, cb)
+				local color = default or Color3.fromRGB(255, 50, 50);
+				local open = false;
+				local h, s, v = color:ToHSV();
+				local hasInfo = info and info ~= "";
+				local r = Row(hasInfo and 42 or 30);
+				RowLabel(r, name, info);
+				local swKey = r.Name.."Swatch";
+				local ppKey = r.Name.."Picker";
+				local hBarKey = r.Name.."HueBar";
+				local hCKey = r.Name.."HueCursor";
+				local svCKey = r.Name.."SVCanvas";
+				local svKKey = r.Name.."SVKnob";
+
+				G2L[swKey] = Instance.new("TextButton");
+				G2L[swKey].Text = "";
+				G2L[swKey].Size = UDim2.new(0, 28, 0, 18);
+				G2L[swKey].AnchorPoint = Vector2.new(1, 0.5);
+				G2L[swKey].Position = UDim2.new(1, -10, 0.5, 0);
+				G2L[swKey].BackgroundColor3 = color;
+				G2L[swKey].AutoButtonColor = false;
+				G2L[swKey].ZIndex = 8;
+				G2L[swKey].Parent = r;
+				Corner(4, G2L[swKey]);
+				Stroke(T.Border, 1, G2L[swKey]);
+
+				G2L[ppKey] = Instance.new("Frame");
+				G2L[ppKey].Size = UDim2.new(0, 160, 0, 134);
+				G2L[ppKey].AnchorPoint = Vector2.new(1, 0);
+				G2L[ppKey].Position = UDim2.new(1, -10, 1, 4);
+				G2L[ppKey].BackgroundColor3 = T.Panel;
+				G2L[ppKey].BorderSizePixel = 0;
+				G2L[ppKey].Visible = false;
+				G2L[ppKey].ZIndex = 70;
+				G2L[ppKey].Parent = r;
+				Corner(7, G2L[ppKey]);
+				Stroke(T.Border, 1, G2L[ppKey]);
+				Padding(8, 8, 8, 8, G2L[ppKey]);
+
+				G2L[hBarKey] = Instance.new("ImageLabel");
+				G2L[hBarKey].Image = "rbxassetid://2615689002";
+				G2L[hBarKey].Size = UDim2.new(1, 0, 0, 13);
+				G2L[hBarKey].BackgroundTransparency = 1;
+				G2L[hBarKey].ZIndex = 71;
+				G2L[hBarKey].Parent = G2L[ppKey];
+				Corner(4, G2L[hBarKey]);
+
+				G2L[hCKey] = Instance.new("Frame");
+				G2L[hCKey].Size = UDim2.new(0, 5, 1, 4);
+				G2L[hCKey].AnchorPoint = Vector2.new(0.5, 0.5);
+				G2L[hCKey].Position = UDim2.new(h, 0, 0.5, 0);
+				G2L[hCKey].BackgroundColor3 = Color3.new(1, 1, 1);
+				G2L[hCKey].ZIndex = 72;
+				G2L[hCKey].Parent = G2L[hBarKey];
+				Corner(2, G2L[hCKey]);
+
+				G2L[svCKey] = Instance.new("ImageLabel");
+				G2L[svCKey].Image = "rbxassetid://2615689003";
+				G2L[svCKey].Size = UDim2.new(1, 0, 0, 85);
+				G2L[svCKey].Position = UDim2.new(0, 0, 0, 20);
+				G2L[svCKey].BackgroundColor3 = Color3.fromHSV(h, 1, 1);
+				G2L[svCKey].ZIndex = 71;
+				G2L[svCKey].Parent = G2L[ppKey];
+				Corner(4, G2L[svCKey]);
+
+				G2L[svKKey] = Instance.new("Frame");
+				G2L[svKKey].Size = UDim2.new(0, 9, 0, 9);
+				G2L[svKKey].AnchorPoint = Vector2.new(0.5, 0.5);
+				G2L[svKKey].Position = UDim2.new(s, 0, 1 - v, 0);
+				G2L[svKKey].BackgroundColor3 = Color3.new(1, 1, 1);
+				G2L[svKKey].ZIndex = 72;
+				G2L[svKKey].Parent = G2L[svCKey];
+				Corner(5, G2L[svKKey]);
+				Stroke(Color3.new(0, 0, 0), 1, G2L[svKKey]);
+
+				local function upd()
+					color = Color3.fromHSV(h, s, v);
+					G2L[swKey].BackgroundColor3 = color;
+					G2L[svCKey].BackgroundColor3 = Color3.fromHSV(h, 1, 1);
+					G2L[hCKey].Position = UDim2.new(h, 0, 0.5, 0);
+					G2L[svKKey].Position = UDim2.new(s, 0, 1 - v, 0);
+					if cb then task.spawn(cb, color); end
+				end
+
+				local dH, dSV = false, false;
+				G2L[hBarKey].InputBegan:Connect(function(i)
+					if i.UserInputType == Enum.UserInputType.MouseButton1 then dH = true; end
+				end);
+				G2L[svCKey].InputBegan:Connect(function(i)
+					if i.UserInputType == Enum.UserInputType.MouseButton1 then dSV = true; end
+				end);
+				UserInputService.InputEnded:Connect(function(i)
+					if i.UserInputType == Enum.UserInputType.MouseButton1 then dH = false; dSV = false; end
+				end);
+				UserInputService.InputChanged:Connect(function(i)
+					if i.UserInputType ~= Enum.UserInputType.MouseMovement then return; end
+					if dH then
+						h = math.clamp((i.Position.X - G2L[hBarKey].AbsolutePosition.X) / G2L[hBarKey].AbsoluteSize.X, 0, 1);
+						upd();
+					elseif dSV then
+						s = math.clamp((i.Position.X - G2L[svCKey].AbsolutePosition.X) / G2L[svCKey].AbsoluteSize.X, 0, 1);
+						v = 1 - math.clamp((i.Position.Y - G2L[svCKey].AbsolutePosition.Y) / G2L[svCKey].AbsoluteSize.Y, 0, 1);
+						upd();
+					end
+				end);
+
+				G2L[swKey].MouseButton1Click:Connect(function()
+					open = not open;
+					G2L[ppKey].Visible = open;
+				end);
+
+				return {
+					Get = function(_) return color; end;
+					Set = function(_, c) color = c; h, s, v = c:ToHSV(); upd(); end;
+				};
+			end
+
+			function Sec:NewDivider(label)
+				elemIdx = elemIdx + 1;
+				local rKey = sKey.."Row"..elemIdx;
+				G2L[rKey] = Instance.new("Frame");
+				G2L[rKey].Size = UDim2.new(1, 0, 0, 16);
+				G2L[rKey].BackgroundTransparency = 1;
+				G2L[rKey].ZIndex = 6;
+				G2L[rKey].Parent = elems;
+
+				G2L[rKey.."Line"] = Instance.new("Frame");
+				G2L[rKey.."Line"].Size = UDim2.new(1, -16, 0, 1);
+				G2L[rKey.."Line"].Position = UDim2.new(0, 8, 0.5, 0);
+				G2L[rKey.."Line"].BackgroundColor3 = T.Border;
+				G2L[rKey.."Line"].BorderSizePixel = 0;
+				G2L[rKey.."Line"].ZIndex = 7;
+				G2L[rKey.."Line"].Parent = G2L[rKey];
+
+				if label and label ~= "" then
+					G2L[rKey.."DivLbl"] = Instance.new("TextLabel");
+					G2L[rKey.."DivLbl"].Text = label;
+					G2L[rKey.."DivLbl"].Font = Enum.Font.GothamBold;
+					G2L[rKey.."DivLbl"].TextSize = 8;
+					G2L[rKey.."DivLbl"].TextColor3 = T.TxMut;
+					G2L[rKey.."DivLbl"].TextXAlignment = Enum.TextXAlignment.Center;
+					G2L[rKey.."DivLbl"].AnchorPoint = Vector2.new(0.5, 0.5);
+					G2L[rKey.."DivLbl"].Position = UDim2.new(0.5, 0, 0.5, 0);
+					G2L[rKey.."DivLbl"].Size = UDim2.new(0.5, 0, 1, 0);
+					G2L[rKey.."DivLbl"].BackgroundColor3 = T.Card;
+					G2L[rKey.."DivLbl"].ZIndex = 8;
+					G2L[rKey.."DivLbl"].Parent = G2L[rKey];
+				end
+			end
+
+			return Sec;
+		end
+
+		return tab;
+	end
+
+	function Win:Notify(ttl, msg, dur)
+		dur = dur or 4;
+		local nKey = "Notif_"..os.clock();
+
+		G2L[nKey] = Instance.new("Frame");
+		G2L[nKey].Size = UDim2.new(1, 0, 0, 56);
+		G2L[nKey].BackgroundColor3 = T.Panel;
+		G2L[nKey].BackgroundTransparency = 0.04;
+		G2L[nKey].ClipsDescendants = true;
+		G2L[nKey].ZIndex = 601;
+		G2L[nKey].Parent = self._notifHolder;
+		Corner(6, G2L[nKey]);
+		Stroke(T.Border, 1, G2L[nKey]);
+
+		G2L[nKey.."Bar"] = Instance.new("Frame");
+		G2L[nKey.."Bar"].Size = UDim2.new(0, 2, 1, 0);
+		G2L[nKey.."Bar"].BackgroundColor3 = T.Accent;
+		G2L[nKey.."Bar"].BorderSizePixel = 0;
+		G2L[nKey.."Bar"].ZIndex = 602;
+		G2L[nKey.."Bar"].Parent = G2L[nKey];
+
+		G2L[nKey.."Title"] = Instance.new("TextLabel");
+		G2L[nKey.."Title"].Text = ttl;
+		G2L[nKey.."Title"].Font = Enum.Font.GothamBold;
+		G2L[nKey.."Title"].TextSize = 11;
+		G2L[nKey.."Title"].TextColor3 = T.TxPrim;
+		G2L[nKey.."Title"].TextXAlignment = Enum.TextXAlignment.Left;
+		G2L[nKey.."Title"].Position = UDim2.new(0, 10, 0, 6);
+		G2L[nKey.."Title"].Size = UDim2.new(1, -14, 0, 14);
+		G2L[nKey.."Title"].BackgroundTransparency = 1;
+		G2L[nKey.."Title"].ZIndex = 603;
+		G2L[nKey.."Title"].Parent = G2L[nKey];
+
+		G2L[nKey.."Msg"] = Instance.new("TextLabel");
+		G2L[nKey.."Msg"].Text = msg;
+		G2L[nKey.."Msg"].Font = Enum.Font.Gotham;
+		G2L[nKey.."Msg"].TextSize = 10;
+		G2L[nKey.."Msg"].TextColor3 = T.TxSec;
+		G2L[nKey.."Msg"].TextXAlignment = Enum.TextXAlignment.Left;
+		G2L[nKey.."Msg"].TextWrapped = true;
+		G2L[nKey.."Msg"].Position = UDim2.new(0, 10, 0, 22);
+		G2L[nKey.."Msg"].Size = UDim2.new(1, -14, 0, 26);
+		G2L[nKey.."Msg"].BackgroundTransparency = 1;
+		G2L[nKey.."Msg"].ZIndex = 603;
+		G2L[nKey.."Msg"].Parent = G2L[nKey];
+
+		G2L[nKey.."Prog"] = Instance.new("Frame");
+		G2L[nKey.."Prog"].Size = UDim2.new(1, 0, 0, 2);
+		G2L[nKey.."Prog"].Position = UDim2.new(0, 0, 1, -2);
+		G2L[nKey.."Prog"].BackgroundColor3 = T.Accent;
+		G2L[nKey.."Prog"].BorderSizePixel = 0;
+		G2L[nKey.."Prog"].ZIndex = 604;
+		G2L[nKey.."Prog"].Parent = G2L[nKey];
+
+		Tween(G2L[nKey.."Prog"], {Size = UDim2.new(0, 0, 0, 2)}, dur, Enum.EasingStyle.Linear):Play();
+		G2L[nKey].Position = UDim2.new(1, 10, 0, 0);
+		Tween(G2L[nKey], {Position = UDim2.new(0, 0, 0, 0)}, 0.25):Play();
+		task.delay(dur, function()
+			Tween(G2L[nKey], {BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 0)}, 0.2):Play();
+			task.delay(0.22, function() G2L[nKey]:Destroy(); end);
+		end);
+	end
+
+	return Win;
+end
+
+return G2L["UI"];
