@@ -159,9 +159,9 @@ local function MakeCtxMenu(parent, options, currentFn, onPick)
 	end
 end
 
-G2L["UI"] = {};
+G2L.UI = {};
 
-function G2L["UI"].CreateLib(title)
+function G2L.UI.CreateLib(title)
 	local tKey = Enum.KeyCode.RightShift;
 	local WIN_W = 740;
 	local WIN_H = 460;
@@ -1410,4 +1410,4 @@ function G2L["UI"].CreateLib(title)
 	return Win;
 end
 
-return G2L["UI"];
+return G2L.UI;
