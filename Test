@@ -1,4 +1,28 @@
-
+--[[
+╔══════════════════════════════════════════════════════════╗
+║           UILibrary v6.0  —  Kavo-style API              ║
+╠══════════════════════════════════════════════════════════╣
+║  USAGE:                                                  ║
+║    local UI = loadstring(game:HttpGet("RAW_URL"))()      ║
+║                                                          ║
+║    local Win = UI.CreateLib("MyHub", "Primordial")       ║
+║                                                          ║
+║    local Tab = Win:NewTab("Aimbot")                      ║
+║    local Sec = Tab:NewSection("Settings")                ║
+║                                                          ║
+║    Sec:NewButton("Fire","Click me",function() end)       ║
+║    Sec:NewToggle("Enable","Info",function(s) end)        ║
+║    Sec:NewSlider("FOV","Info",360,0,function(v) end)     ║
+║    Sec:NewTextBox("Tag","Info",function(t) end)          ║
+║    Sec:NewKeybind("Key","Info",Enum.KeyCode.E,cb)        ║
+║    Sec:NewDropdown("Part","Info",{"A","B"},cb)           ║
+║    Sec:NewColorPicker("Color","Info",Color3,cb)          ║
+║                                                          ║
+║    Win:Notify("Title","Message",4)                       ║
+║    Win:SetKey(Enum.KeyCode.RightShift)  -- toggle key    ║
+╚══════════════════════════════════════════════════════════╝
+    Themes: "Primordial" | "PrimordialPink" | "Dark" | "Midnight"
+]]
 
 -- ════════════════════════════════════════════════════════════
 local Players  = game:GetService("Players")
@@ -370,9 +394,8 @@ function UI.CreateLib(title, theme)
         if gp then return end
         if i.KeyCode==tKey then
             visible=not visible
-            root.Visible    =visible
-            wmOuter.Visible =visible
-            kbFrame.Visible =visible and #KBList>0
+            root.Visible=visible
+            -- watermark and keybind list stay visible always
         end
     end)
 
@@ -813,7 +836,12 @@ function UI.CreateLib(title, theme)
                     end)
                 end
 
-                kBtn.MouseButton2Click:Connect(showKbCtx)
+                -- right-click on the whole row (bigger target than just kBtn)
+                r.InputBegan:Connect(function(i)
+                    if i.UserInputType==Enum.UserInputType.MouseButton2 then
+                        showKbCtx()
+                    end
+                end)
 
                 -- Override InputBegan to respect mode
                 -- (original connection already handles Toggle and rebinding)
