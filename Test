@@ -1,28 +1,4 @@
---[[
-╔══════════════════════════════════════════════════════════╗
-║           UILibrary v6.0  —  Kavo-style API              ║
-╠══════════════════════════════════════════════════════════╣
-║  USAGE:                                                  ║
-║    local UI = loadstring(game:HttpGet("RAW_URL"))()      ║
-║                                                          ║
-║    local Win = UI.CreateLib("MyHub", "Primordial")       ║
-║                                                          ║
-║    local Tab = Win:NewTab("Aimbot")                      ║
-║    local Sec = Tab:NewSection("Settings")                ║
-║                                                          ║
-║    Sec:NewButton("Fire","Click me",function() end)       ║
-║    Sec:NewToggle("Enable","Info",function(s) end)        ║
-║    Sec:NewSlider("FOV","Info",360,0,function(v) end)     ║
-║    Sec:NewTextBox("Tag","Info",function(t) end)          ║
-║    Sec:NewKeybind("Key","Info",Enum.KeyCode.E,cb)        ║
-║    Sec:NewDropdown("Part","Info",{"A","B"},cb)           ║
-║    Sec:NewColorPicker("Color","Info",Color3,cb)          ║
-║                                                          ║
-║    Win:Notify("Title","Message",4)                       ║
-║    Win:SetKey(Enum.KeyCode.RightShift)  -- toggle key    ║
-╚══════════════════════════════════════════════════════════╝
-    Themes: "Primordial" | "PrimordialPink" | "Dark" | "Midnight"
-]]
+
 
 -- ════════════════════════════════════════════════════════════
 local Players  = game:GetService("Players")
@@ -289,7 +265,9 @@ function UI.CreateLib(title, theme)
         Size=UDim2.new(0,WIN_W,0,WIN_H),
         BackgroundColor3=T.BG,BorderSizePixel=0,ClipsDescendants=false,Parent=gui,
     })
-    Crn(8,root); Stk(T.Border,1,root)
+    Crn(8,root)
+    -- Stroke applied to inner (clipped) so corners are pixel-perfect
+    -- Stk is added after inner is created below
     New("ImageLabel",{
         AnchorPoint=Vector2.new(0.5,0.5),Position=UDim2.new(0.5,0,0.5,14),
         Size=UDim2.new(1,60,1,60),ZIndex=0,BackgroundTransparency=1,
@@ -302,6 +280,7 @@ function UI.CreateLib(title, theme)
         ClipsDescendants=true,ZIndex=1,Parent=root,
     })
     Crn(8,inner)
+    Stk(T.Border,1,inner)  -- border on the clipped inner → perfect rounded corners
 
     -- ── Title bar ─────────────────────────────────────────────
     local titleBar=New("Frame",{
@@ -660,105 +639,9 @@ function UI.CreateLib(title, theme)
                     if cb then task.spawn(cb,on) end
                 end)
 
-                -- RIGHT-CLICK: show mode picker (Toggle / Hold / Always On)
-                local toggleMode = "Toggle"  -- current mode
-                local ctxMenu = nil
-
-                local function destroyCtx()
-                    if ctxMenu then ctxMenu:Destroy(); ctxMenu=nil end
-                end
-
-                local function showCtx()
-                    destroyCtx()
-                    local modes = {"Toggle", "Hold", "Always On"}
-                    local menuH = #modes * 24 + 6
-                    ctxMenu = New("Frame",{
-                        Size=UDim2.new(0,110,0,menuH),
-                        AnchorPoint=Vector2.new(0,0),
-                        Position=UDim2.new(0,-2,1,4),
-                        BackgroundColor3=T.Panel,
-                        BorderSizePixel=0,ZIndex=80,
-                        ClipsDescendants=true,
-                        Parent=r,
-                    })
-                    Crn(5,ctxMenu); Stk(T.Border,1,ctxMenu)
-                    local cList=New("Frame",{
-                        Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,ZIndex=81,Parent=ctxMenu,
-                    })
-                    VList(cList,0); Pad(4,4,3,3,cList)
-                    for _,mode in ipairs(modes) do
-                        local mBtn=New("TextButton",{
-                            Text=mode,Font=Enum.Font.Gotham,TextSize=10,
-                            TextColor3=mode==toggleMode and T.Accent or T.TxPrim,
-                            TextXAlignment=Enum.TextXAlignment.Left,
-                            Size=UDim2.new(1,0,0,24),
-                            BackgroundColor3=T.Hover,BackgroundTransparency=1,
-                            AutoButtonColor=false,ZIndex=82,Parent=cList,
-                        })
-                        Crn(3,mBtn); Pad(8,8,0,0,mBtn)
-                        -- active dot for current mode
-                        if mode==toggleMode then
-                            New("Frame",{
-                                Size=UDim2.new(0,4,0,4),AnchorPoint=Vector2.new(1,0.5),
-                                Position=UDim2.new(1,-6,0.5,0),
-                                BackgroundColor3=T.Accent,BorderSizePixel=0,ZIndex=83,Parent=mBtn,
-                            })
-                        end
-                        mBtn.MouseEnter:Connect(function()
-                            Tw(mBtn,{BackgroundTransparency=0},0.1):Play()
-                        end)
-                        mBtn.MouseLeave:Connect(function()
-                            Tw(mBtn,{BackgroundTransparency=1},0.1):Play()
-                        end)
-                        mBtn.MouseButton1Click:Connect(function()
-                            toggleMode=mode
-                            destroyCtx()
-                            -- apply mode behaviour
-                            if mode=="Always On" then
-                                on=true; upd()
-                                if cb then task.spawn(cb,true) end
-                            elseif mode=="Toggle" then
-                                -- keep current state, normal click behaviour
-                            elseif mode=="Hold" then
-                                -- hold handled below in InputBegan/Ended
-                            end
-                        end)
-                    end
-                    -- close if clicked outside
-                    local closeConn
-                    closeConn=UIS.InputBegan:Connect(function(i,gp)
-                        if i.UserInputType==Enum.UserInputType.MouseButton1 then
-                            task.defer(destroyCtx)
-                            closeConn:Disconnect()
-                        end
-                    end)
-                end
-
-                -- Override: right-click opens context menu
-                track.MouseButton2Click:Connect(showCtx)
-
-                -- Hold mode: fire while mouse is held on the track
-                local holding=false
-                track.InputBegan:Connect(function(i)
-                    if i.UserInputType==Enum.UserInputType.MouseButton1 and toggleMode=="Hold" then
-                        holding=true; on=true; upd()
-                        if cb then task.spawn(cb,true) end
-                    end
-                end)
-                UIS.InputEnded:Connect(function(i)
-                    if i.UserInputType==Enum.UserInputType.MouseButton1 and holding then
-                        holding=false
-                        if toggleMode=="Hold" then
-                            on=false; upd()
-                            if cb then task.spawn(cb,false) end
-                        end
-                    end
-                end)
-
                 return {
                     Set=function(_,v) on=v;upd();if cb then task.spawn(cb,on) end end,
                     Get=function(_) return on end,
-                    GetMode=function(_) return toggleMode end,
                 }
             end
 
@@ -876,9 +759,81 @@ function UI.CreateLib(title, theme)
                         task.spawn(cb,key)
                     end
                 end)
+                -- RIGHT-CLICK on keybind button: mode picker
+                local kbMode = "Toggle"  -- Toggle | Hold | Always On
+                local kbCtx  = nil
+
+                local function destroyKbCtx()
+                    if kbCtx then kbCtx:Destroy(); kbCtx=nil end
+                end
+
+                local function showKbCtx()
+                    destroyKbCtx()
+                    local modes = {"Toggle","Hold","Always On"}
+                    local menuH = #modes*24+6
+                    kbCtx=New("Frame",{
+                        Size=UDim2.new(0,110,0,menuH),
+                        AnchorPoint=Vector2.new(1,0),
+                        Position=UDim2.new(1,0,1,4),
+                        BackgroundColor3=T.Panel,BorderSizePixel=0,
+                        ZIndex=80,ClipsDescendants=true,Parent=r,
+                    })
+                    Crn(5,kbCtx); Stk(T.Border,1,kbCtx)
+                    local cl=New("Frame",{Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,ZIndex=81,Parent=kbCtx})
+                    VList(cl,0); Pad(4,4,3,3,cl)
+                    for _,mode in ipairs(modes) do
+                        local mb=New("TextButton",{
+                            Text=mode,Font=Enum.Font.Gotham,TextSize=10,
+                            TextColor3=mode==kbMode and T.Accent or T.TxPrim,
+                            TextXAlignment=Enum.TextXAlignment.Left,
+                            Size=UDim2.new(1,0,0,24),
+                            BackgroundColor3=T.Hover,BackgroundTransparency=1,
+                            AutoButtonColor=false,ZIndex=82,Parent=cl,
+                        })
+                        Crn(3,mb); Pad(8,8,0,0,mb)
+                        if mode==kbMode then
+                            New("Frame",{
+                                Size=UDim2.new(0,4,0,4),AnchorPoint=Vector2.new(1,0.5),
+                                Position=UDim2.new(1,-6,0.5,0),
+                                BackgroundColor3=T.Accent,BorderSizePixel=0,ZIndex=83,Parent=mb,
+                            })
+                        end
+                        mb.MouseEnter:Connect(function() Tw(mb,{BackgroundTransparency=0},0.1):Play() end)
+                        mb.MouseLeave:Connect(function() Tw(mb,{BackgroundTransparency=1},0.1):Play() end)
+                        mb.MouseButton1Click:Connect(function()
+                            kbMode=mode; destroyKbCtx()
+                            if mode=="Always On" and cb then task.spawn(cb,key) end
+                        end)
+                    end
+                    local cc
+                    cc=UIS.InputBegan:Connect(function(i,gp)
+                        if i.UserInputType==Enum.UserInputType.MouseButton1 then
+                            task.defer(destroyKbCtx); cc:Disconnect()
+                        end
+                    end)
+                end
+
+                kBtn.MouseButton2Click:Connect(showKbCtx)
+
+                -- Override InputBegan to respect mode
+                -- (original connection already handles Toggle and rebinding)
+                -- Hold mode wiring
+                local kHolding=false
+                kBtn.InputBegan:Connect(function(i)
+                    if i.UserInputType==Enum.UserInputType.MouseButton1 and kbMode=="Hold" and key then
+                        kHolding=true; task.spawn(cb,key)
+                    end
+                end)
+                UIS.InputEnded:Connect(function(i)
+                    if i.UserInputType==Enum.UserInputType.MouseButton1 and kHolding then
+                        kHolding=false
+                    end
+                end)
+
                 return {
                     Get=function(_) return key end,
                     Set=function(_,k) key=k;kBtn.Text=k and k.Name or "None";kbUpd(kbE,k) end,
+                    GetMode=function(_) return kbMode end,
                 }
             end
 
