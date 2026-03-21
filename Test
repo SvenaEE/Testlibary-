@@ -185,74 +185,46 @@ function UILib.CreateLib(title)
 		DisplayOrder   = 999,
 	})
 
-	local wm1 = make("Frame", gui, {
-		Position      = UDim2.new(0, 8, 0, 6),
-		Size          = UDim2.new(0, 10, 0, 24),
-		AutomaticSize = Enum.AutomaticSize.X,
+	-- single watermark bar top-left, auto-width, shows all info
+	local wmBar = make("Frame", gui, {
+		Position         = UDim2.new(0, 8, 0, 6),
+		Size             = UDim2.new(0, 10, 0, 24),
+		AutomaticSize    = Enum.AutomaticSize.X,
 		BackgroundColor3 = col.wmbg,
 		BorderSizePixel  = 0,
 		ZIndex           = 500,
 	})
-	corner(4, wm1)
-	stroke(col.border, 1, wm1)
-	make("Frame", wm1, {
+	corner(4, wmBar)
+	stroke(col.border, 1, wmBar)
+	-- left accent stripe
+	make("Frame", wmBar, {
 		Size             = UDim2.new(0, 2, 1, 0),
 		BackgroundColor3 = col.accent,
 		BorderSizePixel  = 0,
 		ZIndex           = 501,
 	})
-	local wm1lbl = make("TextLabel", wm1, {
-		Text              = "",
-		Font              = Enum.Font.Code,
-		TextSize          = 12,
-		TextColor3        = col.txsec,
-		TextXAlignment    = Enum.TextXAlignment.Left,
-		Size              = UDim2.new(0, 10, 1, 0),
-		AutomaticSize     = Enum.AutomaticSize.X,
+	local wmLbl = make("TextLabel", wmBar, {
+		Text                   = " loading... ",
+		Font                   = Enum.Font.Code,
+		TextSize               = 12,
+		TextColor3             = col.txsec,
+		TextXAlignment         = Enum.TextXAlignment.Left,
+		Size                   = UDim2.new(0, 10, 1, 0),
+		AutomaticSize          = Enum.AutomaticSize.X,
 		BackgroundTransparency = 1,
-		ZIndex            = 502,
+		ZIndex                 = 502,
 	})
-	pad(10, 12, 0, 0, wm1lbl)
-
-	local wm2 = make("Frame", gui, {
-		AnchorPoint   = Vector2.new(1, 0),
-		Position      = UDim2.new(1, -8, 0, 6),
-		Size          = UDim2.new(0, 10, 0, 24),
-		AutomaticSize = Enum.AutomaticSize.X,
-		BackgroundColor3 = col.wmbg,
-		BorderSizePixel  = 0,
-		ZIndex           = 500,
-	})
-	corner(4, wm2)
-	stroke(col.border, 1, wm2)
-	make("Frame", wm2, {
-		AnchorPoint      = Vector2.new(1, 0),
-		Size             = UDim2.new(0, 2, 1, 0),
-		Position         = UDim2.new(1, 0, 0, 0),
-		BackgroundColor3 = col.accent,
-		BorderSizePixel  = 0,
-		ZIndex           = 501,
-	})
-	local wm2lbl = make("TextLabel", wm2, {
-		Text              = "",
-		Font              = Enum.Font.Code,
-		TextSize          = 12,
-		TextColor3        = col.txsec,
-		TextXAlignment    = Enum.TextXAlignment.Right,
-		Size              = UDim2.new(0, 10, 1, 0),
-		AutomaticSize     = Enum.AutomaticSize.X,
-		BackgroundTransparency = 1,
-		ZIndex            = 502,
-	})
-	pad(12, 10, 0, 0, wm2lbl)
+	pad(10, 12, 0, 0, wmLbl)
 
 	local fpsA, fpsC, fpsV, lastWM = 0, 0, 60, 0
 	local function updateWM()
 		local ok, ping = pcall(function() return lp:GetNetworkPing() end)
 		local p = ok and math.round((ping or 0) * 1000) or 0
 		local t = os.date("*t")
-		wm1lbl.Text = string.format(" %s  |  %s ", title, lp.Name)
-		wm2lbl.Text = string.format(" FPS: %d  |  Ping: %dms  |  %02d:%02d ", fpsV, p, t.hour, t.min)
+		wmLbl.Text = string.format(
+			" %s  |  %s  |  FPS: %d  |  Ping: %dms  |  %02d:%02d ",
+			title, lp.Name, fpsV, p, t.hour, t.min
+		)
 	end
 
 	RunService.Heartbeat:Connect(function(dt)
