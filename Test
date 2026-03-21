@@ -99,10 +99,11 @@ local activeCtx = nil
 local function closeCtx()
     if activeCtx then activeCtx:Destroy(); activeCtx=nil end
 end
--- Close on any left-click anywhere
+-- Close on any left-click anywhere — deferred so button clicks inside
+-- the menu fire BEFORE the menu is destroyed
 UIS.InputBegan:Connect(function(i,gp)
     if i.UserInputType==Enum.UserInputType.MouseButton1 then
-        closeCtx()
+        task.defer(closeCtx)
     end
 end)
 
@@ -175,14 +176,18 @@ function UI.CreateLib(title)
     local BODY_H  = WIN_H - TITLE_H - TAB_H
     local COL_W   = math.floor((WIN_W - 6 - 20 - 10) / 2)
 
-    -- ── ScreenGui ─────────────────────────────────────────────
+    -- ── ScreenGui — destroy any previous instance first ─────────
+    local GUI_NAME = "UILibrary_MyHub"
+    local coreGui  = game:GetService("CoreGui")
+    local existing = (Run:IsStudio() and LP.PlayerGui or coreGui):FindFirstChild(GUI_NAME)
+    if existing then existing:Destroy() end
+
     local gui = New("ScreenGui",{
-        Name           = "UL_"..Http:GenerateGUID(false):sub(1,6),
+        Name           = GUI_NAME,
         ResetOnSpawn   = false,
         ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
         DisplayOrder   = 999,
-        Parent         = Run:IsStudio() and LP.PlayerGui
-                         or game:GetService("CoreGui"),
+        Parent         = Run:IsStudio() and LP.PlayerGui or coreGui,
     })
 
     -- ── Watermark (always visible, auto-width) ─────────────────
