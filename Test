@@ -659,9 +659,106 @@ function UI.CreateLib(title, theme)
                     on=not on; upd()
                     if cb then task.spawn(cb,on) end
                 end)
+
+                -- RIGHT-CLICK: show mode picker (Toggle / Hold / Always On)
+                local toggleMode = "Toggle"  -- current mode
+                local ctxMenu = nil
+
+                local function destroyCtx()
+                    if ctxMenu then ctxMenu:Destroy(); ctxMenu=nil end
+                end
+
+                local function showCtx()
+                    destroyCtx()
+                    local modes = {"Toggle", "Hold", "Always On"}
+                    local menuH = #modes * 24 + 6
+                    ctxMenu = New("Frame",{
+                        Size=UDim2.new(0,110,0,menuH),
+                        AnchorPoint=Vector2.new(0,0),
+                        Position=UDim2.new(0,-2,1,4),
+                        BackgroundColor3=T.Panel,
+                        BorderSizePixel=0,ZIndex=80,
+                        ClipsDescendants=true,
+                        Parent=r,
+                    })
+                    Crn(5,ctxMenu); Stk(T.Border,1,ctxMenu)
+                    local cList=New("Frame",{
+                        Size=UDim2.new(1,0,1,0),BackgroundTransparency=1,ZIndex=81,Parent=ctxMenu,
+                    })
+                    VList(cList,0); Pad(4,4,3,3,cList)
+                    for _,mode in ipairs(modes) do
+                        local mBtn=New("TextButton",{
+                            Text=mode,Font=Enum.Font.Gotham,TextSize=10,
+                            TextColor3=mode==toggleMode and T.Accent or T.TxPrim,
+                            TextXAlignment=Enum.TextXAlignment.Left,
+                            Size=UDim2.new(1,0,0,24),
+                            BackgroundColor3=T.Hover,BackgroundTransparency=1,
+                            AutoButtonColor=false,ZIndex=82,Parent=cList,
+                        })
+                        Crn(3,mBtn); Pad(8,8,0,0,mBtn)
+                        -- active dot for current mode
+                        if mode==toggleMode then
+                            New("Frame",{
+                                Size=UDim2.new(0,4,0,4),AnchorPoint=Vector2.new(1,0.5),
+                                Position=UDim2.new(1,-6,0.5,0),
+                                BackgroundColor3=T.Accent,BorderSizePixel=0,ZIndex=83,Parent=mBtn,
+                            })
+                        end
+                        mBtn.MouseEnter:Connect(function()
+                            Tw(mBtn,{BackgroundTransparency=0},0.1):Play()
+                        end)
+                        mBtn.MouseLeave:Connect(function()
+                            Tw(mBtn,{BackgroundTransparency=1},0.1):Play()
+                        end)
+                        mBtn.MouseButton1Click:Connect(function()
+                            toggleMode=mode
+                            destroyCtx()
+                            -- apply mode behaviour
+                            if mode=="Always On" then
+                                on=true; upd()
+                                if cb then task.spawn(cb,true) end
+                            elseif mode=="Toggle" then
+                                -- keep current state, normal click behaviour
+                            elseif mode=="Hold" then
+                                -- hold handled below in InputBegan/Ended
+                            end
+                        end)
+                    end
+                    -- close if clicked outside
+                    local closeConn
+                    closeConn=UIS.InputBegan:Connect(function(i,gp)
+                        if i.UserInputType==Enum.UserInputType.MouseButton1 then
+                            task.defer(destroyCtx)
+                            closeConn:Disconnect()
+                        end
+                    end)
+                end
+
+                -- Override: right-click opens context menu
+                track.MouseButton2Click:Connect(showCtx)
+
+                -- Hold mode: fire while mouse is held on the track
+                local holding=false
+                track.InputBegan:Connect(function(i)
+                    if i.UserInputType==Enum.UserInputType.MouseButton1 and toggleMode=="Hold" then
+                        holding=true; on=true; upd()
+                        if cb then task.spawn(cb,true) end
+                    end
+                end)
+                UIS.InputEnded:Connect(function(i)
+                    if i.UserInputType==Enum.UserInputType.MouseButton1 and holding then
+                        holding=false
+                        if toggleMode=="Hold" then
+                            on=false; upd()
+                            if cb then task.spawn(cb,false) end
+                        end
+                    end
+                end)
+
                 return {
                     Set=function(_,v) on=v;upd();if cb then task.spawn(cb,on) end end,
                     Get=function(_) return on end,
+                    GetMode=function(_) return toggleMode end,
                 }
             end
 
@@ -805,11 +902,7 @@ function UI.CreateLib(title, theme)
                     Position=UDim2.new(0,6,0,0),Size=UDim2.new(1,-18,1,0),
                     BackgroundTransparency=1,ZIndex=9,Parent=dBtn,
                 })
-                local arrow=New("TextLabel",{
-                    Text="▾",Font=Enum.Font.GothamBold,TextSize=8,TextColor3=T.TxMut,
-                    AnchorPoint=Vector2.new(1,0.5),Position=UDim2.new(1,-4,0.5,0),
-                    Size=UDim2.new(0,10,1,0),BackgroundTransparency=1,ZIndex=9,Parent=dBtn,
-                })
+                local arrow=nil  -- arrow removed per design
                 local panH=math.min(#options,6)*24+6
                 local panel=New("Frame",{
                     Size=UDim2.new(0.44,0,0,panH),AnchorPoint=Vector2.new(1,0),
@@ -842,7 +935,7 @@ function UI.CreateLib(title, theme)
                         ob.MouseButton1Click:Connect(function()
                             sel=opt; selLbl.Text=opt
                             open=false; panel.Visible=false
-                            Tw(arrow,{Rotation=0},0.14):Play()
+                            -- arrow removed
                             buildOpts()
                             if cb then task.spawn(cb,opt) end
                         end)
@@ -851,7 +944,7 @@ function UI.CreateLib(title, theme)
                 buildOpts()
                 dBtn.MouseButton1Click:Connect(function()
                     open=not open; panel.Visible=open
-                    Tw(arrow,{Rotation=open and 180 or 0},0.14):Play()
+                    -- arrow removed
                 end)
                 return {
                     Get=function(_) return sel end,
