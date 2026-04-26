@@ -423,7 +423,7 @@ function Library:Create(hubName)
 		local sep = Instance.new("Frame", tabFrame)
 		sep.Name             = "IgnoreLine"
 		sep.Size             = UDim2.new(0, 246, 0, 3)
-		sep.Position         = UDim2.new(0, 6, 0, 35)
+		sep.Position         = UDim2.new(0, 6, 0, 33)
 		sep.BackgroundColor3 = Color3.fromRGB(82, 82, 111)
 		sep.BorderSizePixel  = 0
 		local sepCorner = Instance.new("UICorner", sep)
@@ -499,23 +499,53 @@ function Library:Create(hubName)
 			tabFrame.Visible = v
 		end
 
-		-- AddToggle(label, default, callback)
-		-- Adds a toggle row. Returns a setter function.
+		-- ── AddToggle(label, default, callback) ─────────────────────────────────
+		-- Row layout:
+		--   [expand icon] [label]         [pill toggle]
+		-- Left-click pill or row  → toggle on/off
+		-- Right-click row OR click expand icon → show/hide a sub-content area
+		--   (sub-content is empty by default; BuildSettingToggles fills it for
+		--    the Setting tab, but any tab can use it for nested options)
 		function Tab:AddToggle(label, default, callback)
-			local state = (default == true)
+			local state      = (default == true)
+			local expanded   = false   -- sub-panel shown?
 
-			local row = Instance.new("Frame", content)
-			row.Name             = "Toggle_" .. label
+			-- Outer wrapper so sub-panel can sit below the row
+			local wrapper = Instance.new("Frame", content)
+			wrapper.Name             = "ToggleWrapper_" .. label
+			wrapper.Size             = UDim2.new(1, 0, 0, 32)
+			wrapper.BackgroundTransparency = 1
+			wrapper.BorderSizePixel  = 0
+			wrapper.LayoutOrder      = #content:GetChildren()
+			wrapper.AutomaticSize    = Enum.AutomaticSize.Y
+			local wrapList = Instance.new("UIListLayout", wrapper)
+			wrapList.SortOrder = Enum.SortOrder.LayoutOrder
+			wrapList.Padding   = UDim.new(0, 3)
+
+			-- Main toggle row
+			local row = Instance.new("Frame", wrapper)
+			row.Name             = "Row"
 			row.Size             = UDim2.new(1, 0, 0, 32)
 			row.BackgroundColor3 = Color3.fromRGB(14, 14, 19)
 			row.BorderSizePixel  = 0
-			row.LayoutOrder      = #content:GetChildren()
+			row.LayoutOrder      = 1
 			local rowCorner = Instance.new("UICorner", row)
 			rowCorner.CornerRadius = UDim.new(0, 6)
 
+			-- Expand / collapse icon button (left side)
+			-- Shows arrow-right (collapsed) or arrow-down (expanded)
+			local expandBtn = Instance.new("ImageButton", row)
+			expandBtn.Size                = UDim2.new(0, 18, 0, 18)
+			expandBtn.Position            = UDim2.new(0, 6, 0.5, -9)
+			expandBtn.BackgroundTransparency = 1
+			expandBtn.BorderSizePixel     = 0
+			expandBtn.Image               = "rbxassetid://112384738137814"  -- expand/show icon
+			expandBtn.ImageColor3         = Color3.fromRGB(160, 160, 180)
+
+			-- Label
 			local rowLabel = Instance.new("TextLabel", row)
-			rowLabel.Size                  = UDim2.new(1, -50, 1, 0)
-			rowLabel.Position              = UDim2.new(0, 10, 0, 0)
+			rowLabel.Size                  = UDim2.new(1, -70, 1, 0)
+			rowLabel.Position              = UDim2.new(0, 30, 0, 0)
 			rowLabel.BackgroundTransparency = 1
 			rowLabel.BorderSizePixel       = 0
 			rowLabel.FontFace              = Font.new([[rbxasset://fonts/families/JosefinSans.json]], Enum.FontWeight.Regular, Enum.FontStyle.Normal)
@@ -524,7 +554,7 @@ function Library:Create(hubName)
 			rowLabel.TextXAlignment        = Enum.TextXAlignment.Left
 			rowLabel.Text                  = label
 
-			-- Toggle pill (track)
+			-- Toggle pill track
 			local track = Instance.new("Frame", row)
 			track.Size             = UDim2.new(0, 34, 0, 18)
 			track.Position         = UDim2.new(1, -44, 0.5, -9)
@@ -533,7 +563,7 @@ function Library:Create(hubName)
 			local trackCorner = Instance.new("UICorner", track)
 			trackCorner.CornerRadius = UDim.new(1, 0)
 
-			-- Toggle knob
+			-- Knob
 			local knob = Instance.new("Frame", track)
 			knob.Size             = UDim2.new(0, 12, 0, 12)
 			knob.Position         = state and UDim2.new(1, -15, 0.5, -6) or UDim2.new(0, 3, 0.5, -6)
@@ -542,8 +572,29 @@ function Library:Create(hubName)
 			local knobCorner = Instance.new("UICorner", knob)
 			knobCorner.CornerRadius = UDim.new(1, 0)
 
+			-- Sub-panel (hidden by default, shown on right-click or expand icon click)
+			local subPanel = Instance.new("Frame", wrapper)
+			subPanel.Name             = "SubPanel"
+			subPanel.Size             = UDim2.new(1, 0, 0, 0)
+			subPanel.AutomaticSize    = Enum.AutomaticSize.Y
+			subPanel.BackgroundColor3 = Color3.fromRGB(11, 11, 15)
+			subPanel.BorderSizePixel  = 0
+			subPanel.Visible          = false
+			subPanel.LayoutOrder      = 2
+			local subCorner = Instance.new("UICorner", subPanel)
+			subCorner.CornerRadius = UDim.new(0, 6)
+			local subList = Instance.new("UIListLayout", subPanel)
+			subList.SortOrder = Enum.SortOrder.LayoutOrder
+			subList.Padding   = UDim.new(0, 4)
+			local subPad = Instance.new("UIPadding", subPanel)
+			subPad.PaddingLeft   = UDim.new(0, 8)
+			subPad.PaddingRight  = UDim.new(0, 8)
+			subPad.PaddingTop    = UDim.new(0, 6)
+			subPad.PaddingBottom = UDim.new(0, 6)
+
 			local tweenToggle = TweenInfo.new(0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
 
+			-- Toggle on/off
 			local function setToggle(newState, fireCallback)
 				state = newState
 				TweenService:Create(track, tweenToggle, {
@@ -552,47 +603,54 @@ function Library:Create(hubName)
 				TweenService:Create(knob, tweenToggle, {
 					Position = state and UDim2.new(1, -15, 0.5, -6) or UDim2.new(0, 3, 0.5, -6)
 				}):Play()
-				if fireCallback and callback then
-					callback(state)
-				end
+				if fireCallback and callback then callback(state) end
 			end
 
-			-- Click anywhere on row to toggle
+			-- Expand / collapse sub-panel
+			local function setExpanded(newExpanded)
+				expanded = newExpanded
+				subPanel.Visible  = expanded
+				expandBtn.Image   = expanded
+					and "rbxassetid://96221903896918"   -- minimize/hide icon
+					or  "rbxassetid://112384738137814"  -- expand/show icon
+			end
+
+			-- Left-click on the row body (not the expand btn) → toggle pill
 			row.Active = true
 			row.InputBegan:Connect(function(input)
-				if input.UserInputType == Enum.UserInputType.MouseButton1
-					or input.UserInputType == Enum.UserInputType.Touch then
+				if input.UserInputType == Enum.UserInputType.MouseButton1 then
 					setToggle(not state, true)
+				elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
+					-- Right-click → toggle sub-panel
+					setExpanded(not expanded)
 				end
 			end)
 
-			-- Fire default state callback once
+			-- Expand icon click → toggle sub-panel
+			expandBtn.MouseButton1Click:Connect(function()
+				setExpanded(not expanded)
+			end)
+
+			-- Fire default callback
 			if callback then callback(state) end
 
-			-- Return setter so Setting tab can control it externally
-			return setToggle
+			-- Return both setters and the subPanel so BuildSettingToggles can add rows
+			return setToggle, subPanel
 		end
 
 		return Tab
 	end
 
-	-- ── Built-in Setting tab toggles (added AFTER Window:Tab is defined) ─────
-	-- Call Window:AddSettingToggles(settingTab) from user code, or we wire it
-	-- automatically when the 6th tab (Setting) is created via a post-hook.
-	-- Exposed so user can call: local settingTab = Window:Tab("Setting", true)
-	-- then Window:BuildSettingToggles(settingTab)
+	-- ── Built-in Setting tab toggles ─────────────────────────────────────────
 	function Window:BuildSettingToggles(settingTab)
-		-- Watermark toggle
 		settingTab:AddToggle("Watermark", true, function(on)
 			wmName.Visible = on
 		end)
 
-		-- FPS counter toggle
 		settingTab:AddToggle("FPS Counter", true, function(on)
 			fpsBadge.Visible = on
 		end)
 
-		-- Ping counter toggle
 		settingTab:AddToggle("Ping Counter", true, function(on)
 			pingBadge.Visible = on
 		end)
