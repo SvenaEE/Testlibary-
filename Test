@@ -26,20 +26,33 @@ local DRAG_SMOOTH = 0.18  -- lower = smoother/slower, higher = snappier
 local function makeDraggable(frame, handle)
 	handle.Active = true
 
-	local dragging   = false
-	local dragConn   = nil
-	local targetPos  = frame.AbsolutePosition  -- pixel target we lerp toward
+	local dragging  = false
+	local dragConn  = nil
+	local curX      = 0
+	local curY      = 0
+	local wantX     = 0
+	local wantY     = 0
 
 	handle.InputBegan:Connect(function(input)
 		if input.UserInputType ~= Enum.UserInputType.MouseButton1
 			and input.UserInputType ~= Enum.UserInputType.Touch then return end
 
 		dragging = true
-		local mp    = UserInputService:GetMouseLocation()
-		local ap    = frame.AbsolutePosition
-		local offX  = mp.X - ap.X
-		local offY  = mp.Y - ap.Y
-		targetPos   = ap
+
+		-- Normalise: reset AnchorPoint and convert to pure pixel position
+		-- so drag math is always simple and consistent
+		local ap   = frame.AbsolutePosition  -- top-left pixel, ignores AnchorPoint
+		frame.AnchorPoint = Vector2.new(0, 0)
+		frame.Position    = UDim2.new(0, ap.X, 0, ap.Y)
+
+		local mp  = UserInputService:GetMouseLocation()
+		local offX = mp.X - ap.X
+		local offY = mp.Y - ap.Y
+
+		curX  = ap.X
+		curY  = ap.Y
+		wantX = ap.X
+		wantY = ap.Y
 
 		dragConn = RunService.Heartbeat:Connect(function(dt)
 			if not dragging then return end
@@ -47,21 +60,15 @@ local function makeDraggable(frame, handle)
 			local m  = UserInputService:GetMouseLocation()
 			local vp = workspace.CurrentCamera.ViewportSize
 
-			-- Where we WANT to be (raw mouse - offset)
-			local wantX = math.clamp(m.X - offX, 0, vp.X - frame.AbsoluteSize.X)
-			local wantY = math.clamp(m.Y - offY, 0, vp.Y - frame.AbsoluteSize.Y)
-			targetPos   = Vector2.new(wantX, wantY)
+			wantX = math.clamp(m.X - offX, 0, vp.X - frame.AbsoluteSize.X)
+			wantY = math.clamp(m.Y - offY, 0, vp.Y - frame.AbsoluteSize.Y)
 
-			-- Current pixel position
-			local curX = frame.Position.X.Offset
-			local curY = frame.Position.Y.Offset
-
-			-- Lerp smoothly toward target
+			-- Smooth lerp toward want position
 			local alpha = math.clamp(dt / DRAG_SMOOTH, 0, 1)
-			local newX  = curX + (targetPos.X - curX) * alpha
-			local newY  = curY + (targetPos.Y - curY) * alpha
+			curX = curX + (wantX - curX) * alpha
+			curY = curY + (wantY - curY) * alpha
 
-			frame.Position = UDim2.new(0, newX, 0, newY)
+			frame.Position = UDim2.new(0, curX, 0, curY)
 		end)
 	end)
 
@@ -242,15 +249,20 @@ function Library:Create(hubName)
 	end)
 
 	-- ── Toggle (Insert key) ───────────────────────────────────────────────────
+	-- homePos stores each tab's "visible" position so toggle always
+	-- returns to the right place even after dragging.
+	local homePos   = {}   -- [tabFrame] = UDim2  (updated after drag)
 	local isVisible  = true
 	local isTweening = false
 
 	local tweenOut = TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
 	local tweenIn  = TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
 
-	local function getHiddenPos(tab)
-		local p = tab.Position
-		return UDim2.new(0, p.X.Offset - 1800, 0, p.Y.Offset)
+	local OFFSCREEN_X = -1900  -- px to slide off to the left
+
+	local function hiddenPos(tab)
+		local h = homePos[tab] or tab.Position
+		return UDim2.new(0, h.X.Offset + OFFSCREEN_X, 0, h.Y.Offset)
 	end
 
 	local function slideAll(info, targetFn, onDone)
@@ -275,22 +287,23 @@ function Library:Create(hubName)
 		if isTweening then return end
 
 		if isVisible then
+			-- Save current positions as home before sliding out
+			for _, tab in ipairs(tabs) do
+				homePos[tab] = tab.Position
+			end
 			isVisible = false
-			slideAll(tweenOut, getHiddenPos, function()
+			slideAll(tweenOut, hiddenPos, function()
 				layoutFrame.Visible = false
 			end)
 		else
-			-- Snap all hidden tabs off-screen first then slide in
+			-- Snap to off-screen, then tween back to home
 			for _, tab in ipairs(tabs) do
-				local p = tab.Position
-				tab.Position = UDim2.new(0, p.X.Offset - 1800, 0, p.Y.Offset)
+				tab.Position = hiddenPos(tab)
 			end
 			layoutFrame.Visible = true
 			isVisible = true
 			slideAll(tweenIn, function(tab)
-				-- slide back to current pixel position + 1800
-				local p = tab.Position
-				return UDim2.new(0, p.X.Offset + 1800, 0, p.Y.Offset)
+				return homePos[tab] or tab.Position
 			end)
 		end
 	end, false, Enum.KeyCode.Insert)
@@ -458,7 +471,13 @@ function Library:Create(hubName)
 		table.insert(tabs, tabFrame)
 
 		-- Make tab draggable (smooth) using title bar as handle
+		-- Also update homePos when drag ends so toggle returns to new spot
 		makeDraggable(tabFrame, titleBar)
+		titleBar.InputEnded:Connect(function(input)
+			if input.UserInputType ~= Enum.UserInputType.MouseButton1
+				and input.UserInputType ~= Enum.UserInputType.Touch then return end
+			homePos[tabFrame] = tabFrame.Position
+		end)
 
 		-- Auto-resize tab height based on content
 		contentLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
