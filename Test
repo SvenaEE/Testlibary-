@@ -89,12 +89,21 @@ function Library:Create(hubName)
 	local tabs      = {}        -- list of tab frames in order
 	local tabCount  = 0
 
-	-- ── Root ScreenGui ───────────────────────────────────────────────────────
+	-- ── Root ScreenGui (destroy old one if re-executed) ─────────────────────
+	local playerGui = LocalPlayer:WaitForChild("PlayerGui")
+	local existing  = playerGui:FindFirstChild("UILibrary")
+	if existing then
+		existing:Destroy()
+		-- Also unbind old toggle action so it doesnt double-fire
+		pcall(function() ContextActionService:UnbindAction("ToggleUI") end)
+		task.wait(0.05)  -- small gap so destroy fully processes
+	end
+
 	local screenGui = Instance.new("ScreenGui")
 	screenGui.Name            = "UILibrary"
 	screenGui.ZIndexBehavior  = Enum.ZIndexBehavior.Sibling
 	screenGui.ResetOnSpawn    = false
-	screenGui.Parent          = LocalPlayer:WaitForChild("PlayerGui")
+	screenGui.Parent          = playerGui
 
 	-- ── Invisible layout container (full screen) ─────────────────────────────
 	local layoutFrame = Instance.new("Frame", screenGui)
@@ -308,20 +317,28 @@ function Library:Create(hubName)
 		end
 	end, false, Enum.KeyCode.Insert)
 
-	-- ── Tab column positions (auto-layout left to right) ─────────────────────
-	local TAB_PADDING = 22   -- px gap between tabs
-	local TAB_START_X = 22   -- px from left edge
-	local TAB_START_Y = 26   -- px from top edge
-	local TAB_WIDTH   = 259
+	-- ── Tab layout: original exact positions & sizes ────────────────────────
+	-- Matches the original UI script 1:1
+	-- Tab6 (Setting) sits beside Misc at same Y, not underneath it
+	local TAB_WIDTH = 259
 
-	-- Tab icon pool (cycles through for each new tab)
+	local TAB_CONFIGS = {
+		-- { x,    y,   height }
+		{  22,   26,  728 },   -- 1 Combat
+		{ 294,   26,  498 },   -- 2 Movement
+		{ 563,   26,  418 },   -- 3 Player
+		{ 831,   26,  318 },   -- 4 Render
+		{ 1097,  26,  254 },   -- 5 Misc
+		{ 1366,  26,  153 },   -- 6 Setting (beside Misc, not below)
+	}
+
 	local TAB_ICONS = {
-		"rbxassetid://81872698913435",    -- sword  (Combat)
-		"rbxassetid://112426178972099",   -- run    (Movement)
-		"rbxassetid://125020872044147",   -- player (Player)
-		"rbxassetid://100033680381365",   -- eye    (Render)
-		"rbxassetid://120517954878160",   -- star   (Misc)
-		"rbxassetid://116544501716299",   -- gear   (Setting)
+		"rbxassetid://81872698913435",
+		"rbxassetid://112426178972099",
+		"rbxassetid://125020872044147",
+		"rbxassetid://100033680381365",
+		"rbxassetid://120517954878160",
+		"rbxassetid://116544501716299",
 	}
 
 	-- ── Window:Tab(name, visible) ─────────────────────────────────────────────
@@ -329,18 +346,16 @@ function Library:Create(hubName)
 		tabCount += 1
 		local idx = tabCount
 
-		-- Default height; no content yet so keep it slim.
-		-- Users can extend it by calling tab methods later.
-		local TAB_HEIGHT = 200
-
-		-- Calculate X position (side by side)
-		local posX = TAB_START_X + (idx - 1) * (TAB_WIDTH + TAB_PADDING)
+		local cfg        = TAB_CONFIGS[idx] or TAB_CONFIGS[#TAB_CONFIGS]
+		local TAB_HEIGHT = cfg[3]
+		local posX       = cfg[1]
+		local posY       = cfg[2]
 
 		-- ── Tab frame ────────────────────────────────────────────────────────
 		local tabFrame = Instance.new("Frame", layoutFrame)
 		tabFrame.Name             = "Tab_" .. name
 		tabFrame.Size             = UDim2.new(0, TAB_WIDTH, 0, TAB_HEIGHT)
-		tabFrame.Position         = UDim2.new(0, posX, 0, TAB_START_Y)
+		tabFrame.Position         = UDim2.new(0, posX, 0, posY)
 		tabFrame.BackgroundColor3 = Color3.fromRGB(9, 9, 12)
 		tabFrame.BorderSizePixel  = 0
 		tabFrame.Visible          = (visible ~= false)
