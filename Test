@@ -113,27 +113,38 @@ function Library:Create(hubName)
 	layoutFrame.BorderSizePixel     = 0
 
 	-- ── Watermark ────────────────────────────────────────────────────────────
+	-- Uses AutomaticSize + UIListLayout so hiding a badge auto-reflows the rest
 	local wmHolder = Instance.new("Frame", screenGui)
 	wmHolder.Name               = "Watermark Layour"
-	wmHolder.Size               = UDim2.new(0, 193, 0, 120)
+	wmHolder.Size               = UDim2.new(0, 137, 0, 0)      -- width=widest badge; height auto
+	wmHolder.AutomaticSize      = Enum.AutomaticSize.Y
 	wmHolder.AnchorPoint        = Vector2.new(1, 0)
 	wmHolder.Position           = UDim2.new(1, -10, 0, 10)
 	wmHolder.BackgroundTransparency = 1
 	wmHolder.BorderSizePixel    = 0
+	wmHolder.ClipsDescendants   = false
 
-	-- Name badge
-	local wmName = Instance.new("Frame", wmHolder)
-	wmName.Name             = "WaterMarkNameUi"
-	wmName.Size             = UDim2.new(0, 137, 0, 37)
-	wmName.AnchorPoint      = Vector2.new(1, 0)
-	wmName.Position         = UDim2.new(1, 0, 0, 0)
-	wmName.BackgroundColor3 = Color3.fromRGB(24, 25, 30)
-	wmName.BorderSizePixel  = 0
-	local wmNameCorner = Instance.new("UICorner", wmName)
-	wmNameCorner.CornerRadius = UDim.new(0, 5)
-	local wmStroke = Instance.new("UIStroke", wmName)
-	wmStroke.Thickness = 1.5
-	wmStroke.Color     = Color3.fromRGB(40, 42, 50)
+	-- UIListLayout stacks badges top-to-bottom with a 4px gap
+	local wmList = Instance.new("UIListLayout", wmHolder)
+	wmList.SortOrder      = Enum.SortOrder.LayoutOrder
+	wmList.HorizontalAlignment = Enum.HorizontalAlignment.Right
+	wmList.Padding        = UDim.new(0, 4)
+
+	-- Helper: make a dark badge frame
+	local function makeBadge(w, h, order)
+		local f = Instance.new("Frame", wmHolder)
+		f.Size             = UDim2.new(0, w, 0, h)
+		f.BackgroundColor3 = Color3.fromRGB(24, 25, 30)
+		f.BorderSizePixel  = 0
+		f.LayoutOrder      = order
+		local c = Instance.new("UICorner", f); c.CornerRadius = UDim.new(0, 5)
+		local s = Instance.new("UIStroke",  f); s.Thickness = 1.5; s.Color = Color3.fromRGB(40, 42, 50)
+		return f
+	end
+
+	-- Name badge (LayoutOrder=1, always visible, drag handle)
+	local wmName = makeBadge(137, 37, 1)
+	wmName.Name = "WaterMarkNameUi"
 
 	local wmNameLabel = Instance.new("TextLabel", wmName)
 	wmNameLabel.Name                = "WaterMarkTextLabel"
@@ -150,19 +161,9 @@ function Library:Create(hubName)
 		ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 255))
 	}
 
-	-- FPS badge
-	local fpsBadge = Instance.new("Frame", wmHolder)
-	fpsBadge.Name             = "Fps WaterMark"
-	fpsBadge.Size             = UDim2.new(0, 100, 0, 37)
-	fpsBadge.AnchorPoint      = Vector2.new(1, 0)
-	fpsBadge.Position         = UDim2.new(1, 0, 0, 44)
-	fpsBadge.BackgroundColor3 = Color3.fromRGB(24, 25, 30)
-	fpsBadge.BorderSizePixel  = 0
-	local fpsCorner = Instance.new("UICorner", fpsBadge)
-	fpsCorner.CornerRadius = UDim.new(0, 5)
-	local fpsStroke = Instance.new("UIStroke", fpsBadge)
-	fpsStroke.Thickness = 1.5
-	fpsStroke.Color     = Color3.fromRGB(40, 42, 50)
+	-- FPS badge (LayoutOrder=2)
+	local fpsBadge = makeBadge(100, 37, 2)
+	fpsBadge.Name = "Fps WaterMark"
 
 	local fpsIcon = Instance.new("ImageLabel", fpsBadge)
 	fpsIcon.Size                = UDim2.new(0, 23, 0, 23)
@@ -193,19 +194,9 @@ function Library:Create(hubName)
 	fpsLabel2.TextColor3            = Color3.fromRGB(255, 255, 255)
 	fpsLabel2.Text                  = "fps"
 
-	-- Ping badge
-	local pingBadge = Instance.new("Frame", wmHolder)
-	pingBadge.Name             = "Ping WaterMark"
-	pingBadge.Size             = UDim2.new(0, 106, 0, 37)
-	pingBadge.AnchorPoint      = Vector2.new(1, 0)
-	pingBadge.Position         = UDim2.new(1, 0, 0, 85)
-	pingBadge.BackgroundColor3 = Color3.fromRGB(24, 25, 30)
-	pingBadge.BorderSizePixel  = 0
-	local pingCorner = Instance.new("UICorner", pingBadge)
-	pingCorner.CornerRadius = UDim.new(0, 5)
-	local pingStroke = Instance.new("UIStroke", pingBadge)
-	pingStroke.Thickness = 1.5
-	pingStroke.Color     = Color3.fromRGB(40, 42, 50)
+	-- Ping badge (LayoutOrder=3)
+	local pingBadge = makeBadge(106, 37, 3)
+	pingBadge.Name = "Ping WaterMark"
 
 	local pingIcon = Instance.new("ImageLabel", pingBadge)
 	pingIcon.Size                = UDim2.new(0, 30, 0, 28)
@@ -428,11 +419,11 @@ function Library:Create(hubName)
 			ColorSequenceKeypoint.new(1,     Color3.fromRGB(229, 236, 255)),
 		}
 
-		-- Separator line under title bar
+		-- Separator line under title bar (2px up from old position)
 		local sep = Instance.new("Frame", tabFrame)
 		sep.Name             = "IgnoreLine"
 		sep.Size             = UDim2.new(0, 246, 0, 3)
-		sep.Position         = UDim2.new(0, 6, 0, 37)
+		sep.Position         = UDim2.new(0, 6, 0, 35)
 		sep.BackgroundColor3 = Color3.fromRGB(82, 82, 111)
 		sep.BorderSizePixel  = 0
 		local sepCorner = Instance.new("UICorner", sep)
@@ -508,7 +499,103 @@ function Library:Create(hubName)
 			tabFrame.Visible = v
 		end
 
+		-- AddToggle(label, default, callback)
+		-- Adds a toggle row. Returns a setter function.
+		function Tab:AddToggle(label, default, callback)
+			local state = (default == true)
+
+			local row = Instance.new("Frame", content)
+			row.Name             = "Toggle_" .. label
+			row.Size             = UDim2.new(1, 0, 0, 32)
+			row.BackgroundColor3 = Color3.fromRGB(14, 14, 19)
+			row.BorderSizePixel  = 0
+			row.LayoutOrder      = #content:GetChildren()
+			local rowCorner = Instance.new("UICorner", row)
+			rowCorner.CornerRadius = UDim.new(0, 6)
+
+			local rowLabel = Instance.new("TextLabel", row)
+			rowLabel.Size                  = UDim2.new(1, -50, 1, 0)
+			rowLabel.Position              = UDim2.new(0, 10, 0, 0)
+			rowLabel.BackgroundTransparency = 1
+			rowLabel.BorderSizePixel       = 0
+			rowLabel.FontFace              = Font.new([[rbxasset://fonts/families/JosefinSans.json]], Enum.FontWeight.Regular, Enum.FontStyle.Normal)
+			rowLabel.TextSize              = 13
+			rowLabel.TextColor3            = Color3.fromRGB(200, 200, 215)
+			rowLabel.TextXAlignment        = Enum.TextXAlignment.Left
+			rowLabel.Text                  = label
+
+			-- Toggle pill (track)
+			local track = Instance.new("Frame", row)
+			track.Size             = UDim2.new(0, 34, 0, 18)
+			track.Position         = UDim2.new(1, -44, 0.5, -9)
+			track.BackgroundColor3 = state and Color3.fromRGB(82, 82, 180) or Color3.fromRGB(40, 40, 55)
+			track.BorderSizePixel  = 0
+			local trackCorner = Instance.new("UICorner", track)
+			trackCorner.CornerRadius = UDim.new(1, 0)
+
+			-- Toggle knob
+			local knob = Instance.new("Frame", track)
+			knob.Size             = UDim2.new(0, 12, 0, 12)
+			knob.Position         = state and UDim2.new(1, -15, 0.5, -6) or UDim2.new(0, 3, 0.5, -6)
+			knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+			knob.BorderSizePixel  = 0
+			local knobCorner = Instance.new("UICorner", knob)
+			knobCorner.CornerRadius = UDim.new(1, 0)
+
+			local tweenToggle = TweenInfo.new(0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+
+			local function setToggle(newState, fireCallback)
+				state = newState
+				TweenService:Create(track, tweenToggle, {
+					BackgroundColor3 = state and Color3.fromRGB(82, 82, 180) or Color3.fromRGB(40, 40, 55)
+				}):Play()
+				TweenService:Create(knob, tweenToggle, {
+					Position = state and UDim2.new(1, -15, 0.5, -6) or UDim2.new(0, 3, 0.5, -6)
+				}):Play()
+				if fireCallback and callback then
+					callback(state)
+				end
+			end
+
+			-- Click anywhere on row to toggle
+			row.Active = true
+			row.InputBegan:Connect(function(input)
+				if input.UserInputType == Enum.UserInputType.MouseButton1
+					or input.UserInputType == Enum.UserInputType.Touch then
+					setToggle(not state, true)
+				end
+			end)
+
+			-- Fire default state callback once
+			if callback then callback(state) end
+
+			-- Return setter so Setting tab can control it externally
+			return setToggle
+		end
+
 		return Tab
+	end
+
+	-- ── Built-in Setting tab toggles (added AFTER Window:Tab is defined) ─────
+	-- Call Window:AddSettingToggles(settingTab) from user code, or we wire it
+	-- automatically when the 6th tab (Setting) is created via a post-hook.
+	-- Exposed so user can call: local settingTab = Window:Tab("Setting", true)
+	-- then Window:BuildSettingToggles(settingTab)
+	function Window:BuildSettingToggles(settingTab)
+		-- Watermark toggle
+		settingTab:AddToggle("Watermark", true, function(on)
+			wmName.Visible = on
+		end)
+
+		-- FPS counter toggle
+		settingTab:AddToggle("FPS Counter", true, function(on)
+			fpsBadge.Visible = on
+		end)
+
+		-- Ping counter toggle
+		settingTab:AddToggle("Ping Counter", true, function(on)
+			pingBadge.Visible = on
+		end)
 	end
 
 	return Window
