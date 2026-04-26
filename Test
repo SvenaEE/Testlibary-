@@ -423,7 +423,7 @@ function Library:Create(hubName)
 		local sep = Instance.new("Frame", tabFrame)
 		sep.Name             = "IgnoreLine"
 		sep.Size             = UDim2.new(0, 246, 0, 3)
-		sep.Position         = UDim2.new(0, 6, 0, 33)
+		sep.Position         = UDim2.new(0, 6, 0, 31)
 		sep.BackgroundColor3 = Color3.fromRGB(82, 82, 111)
 		sep.BorderSizePixel  = 0
 		local sepCorner = Instance.new("UICorner", sep)
@@ -573,15 +573,22 @@ function Library:Create(hubName)
 			local knobCorner = Instance.new("UICorner", knob)
 			knobCorner.CornerRadius = UDim.new(1, 0)
 
-			-- Sub-panel (hidden by default, shown on right-click or expand icon click)
-			local subPanel = Instance.new("Frame", wrapper)
+			-- Clip container: height tweens for smooth open/close
+			local clipper = Instance.new("Frame", wrapper)
+			clipper.Name              = "SubPanelClipper"
+			clipper.Size              = UDim2.new(1, 0, 0, 0)
+			clipper.BackgroundTransparency = 1
+			clipper.BorderSizePixel   = 0
+			clipper.ClipsDescendants  = true
+			clipper.LayoutOrder       = 2
+
+			-- Actual sub-panel inside clipper (AutomaticSize so we can read real height)
+			local subPanel = Instance.new("Frame", clipper)
 			subPanel.Name             = "SubPanel"
 			subPanel.Size             = UDim2.new(1, 0, 0, 0)
 			subPanel.AutomaticSize    = Enum.AutomaticSize.Y
 			subPanel.BackgroundColor3 = Color3.fromRGB(11, 11, 15)
 			subPanel.BorderSizePixel  = 0
-			subPanel.Visible          = false
-			subPanel.LayoutOrder      = 2
 			local subCorner = Instance.new("UICorner", subPanel)
 			subCorner.CornerRadius = UDim.new(0, 6)
 			local subList = Instance.new("UIListLayout", subPanel)
@@ -593,7 +600,8 @@ function Library:Create(hubName)
 			subPad.PaddingTop    = UDim.new(0, 6)
 			subPad.PaddingBottom = UDim.new(0, 6)
 
-			local tweenToggle = TweenInfo.new(0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+			local tweenToggle  = TweenInfo.new(0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+			local tweenSlide   = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
 
 			-- Toggle on/off
 			local function setToggle(newState, fireCallback)
@@ -607,13 +615,16 @@ function Library:Create(hubName)
 				if fireCallback and callback then callback(state) end
 			end
 
-			-- Expand / collapse sub-panel
+			-- Smooth expand / collapse by tweening clipper height
 			local function setExpanded(newExpanded)
 				expanded = newExpanded
-				subPanel.Visible  = expanded
-				expandBtn.Image   = expanded
+				expandBtn.Image = expanded
 					and "rbxassetid://121304296213645"  -- minimize/hide icon
 					or  "rbxassetid://112384738137814"  -- expand/show icon
+				local targetH = expanded and subPanel.AbsoluteSize.Y or 0
+				TweenService:Create(clipper, tweenSlide, {
+					Size = UDim2.new(1, 0, 0, targetH)
+				}):Play()
 			end
 
 			-- Left-click on the row body (not the expand btn) → toggle pill
@@ -699,7 +710,6 @@ function Library:Create(hubName)
 		subPanel.AutomaticSize    = Enum.AutomaticSize.Y
 		subPanel.BackgroundColor3 = Color3.fromRGB(11, 11, 15)
 		subPanel.BorderSizePixel  = 0
-		subPanel.Visible          = false
 		subPanel.LayoutOrder      = 2
 		local spCorner = Instance.new("UICorner", subPanel)
 		spCorner.CornerRadius = UDim.new(0, 6)
@@ -712,15 +722,29 @@ function Library:Create(hubName)
 		spPad.PaddingTop    = UDim.new(0, 6)
 		spPad.PaddingBottom = UDim.new(0, 6)
 
-		local expanded = false
-		local tweenT   = TweenInfo.new(0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+		local expanded    = false
+		local tweenT      = TweenInfo.new(0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+		local tweenSlide2 = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+
+		-- Wrap subPanel in a clipper for smooth slide
+		local clipper2 = Instance.new("Frame", sectionWrapper)
+		clipper2.Name              = "WatermarkClipper"
+		clipper2.Size              = UDim2.new(1, 0, 0, 0)
+		clipper2.BackgroundTransparency = 1
+		clipper2.BorderSizePixel   = 0
+		clipper2.ClipsDescendants  = true
+		clipper2.LayoutOrder       = 2
+		subPanel.Parent            = clipper2   -- reparent into clipper
 
 		local function setExpanded(v)
-			expanded      = v
-			subPanel.Visible = expanded
-			hIcon.Image   = expanded
+			expanded    = v
+			hIcon.Image = expanded
 				and "rbxassetid://121304296213645"  -- minimize
 				or  "rbxassetid://112384738137814"  -- expand
+			local targetH = expanded and subPanel.AbsoluteSize.Y or 0
+			TweenService:Create(clipper2, tweenSlide2, {
+				Size = UDim2.new(1, 0, 0, targetH)
+			}):Play()
 		end
 
 		header.Active = true
