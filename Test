@@ -493,6 +493,7 @@ function Library:Create(hubName)
 
 		-- ── Tab API ──────────────────────────────────────────────────────────
 		local Tab = {}
+		Tab._content = content   -- internal ref for BuildSettingToggles
 
 		-- Show / hide the tab
 		function Tab:SetVisible(v)
@@ -558,7 +559,7 @@ function Library:Create(hubName)
 			local track = Instance.new("Frame", row)
 			track.Size             = UDim2.new(0, 34, 0, 18)
 			track.Position         = UDim2.new(1, -44, 0.5, -9)
-			track.BackgroundColor3 = state and Color3.fromRGB(82, 82, 180) or Color3.fromRGB(40, 40, 55)
+			track.BackgroundColor3 = state and Color3.fromRGB(81, 81, 110) or Color3.fromRGB(40, 40, 55)
 			track.BorderSizePixel  = 0
 			local trackCorner = Instance.new("UICorner", track)
 			trackCorner.CornerRadius = UDim.new(1, 0)
@@ -598,7 +599,7 @@ function Library:Create(hubName)
 			local function setToggle(newState, fireCallback)
 				state = newState
 				TweenService:Create(track, tweenToggle, {
-					BackgroundColor3 = state and Color3.fromRGB(82, 82, 180) or Color3.fromRGB(40, 40, 55)
+					BackgroundColor3 = state and Color3.fromRGB(81, 81, 110) or Color3.fromRGB(40, 40, 55)
 				}):Play()
 				TweenService:Create(knob, tweenToggle, {
 					Position = state and UDim2.new(1, -15, 0.5, -6) or UDim2.new(0, 3, 0.5, -6)
@@ -611,7 +612,7 @@ function Library:Create(hubName)
 				expanded = newExpanded
 				subPanel.Visible  = expanded
 				expandBtn.Image   = expanded
-					and "rbxassetid://96221903896918"   -- minimize/hide icon
+					and "rbxassetid://121304296213645"  -- minimize/hide icon
 					or  "rbxassetid://112384738137814"  -- expand/show icon
 			end
 
@@ -641,19 +642,160 @@ function Library:Create(hubName)
 		return Tab
 	end
 
-	-- ── Built-in Setting tab toggles ─────────────────────────────────────────
+	-- ── Built-in Setting tab ────────────────────────────────────────────────
 	function Window:BuildSettingToggles(settingTab)
-		settingTab:AddToggle("Watermark", true, function(on)
-			wmName.Visible = on
+		-- "Watermark" section button: click to expand/collapse sub-toggles.
+		-- No pill toggle on this row itself — it's purely a section header.
+
+		local content2 = settingTab._content  -- internal ref set below
+
+		-- Section button row
+		local sectionWrapper = Instance.new("Frame", content2)
+		sectionWrapper.Name              = "WatermarkSection"
+		sectionWrapper.Size              = UDim2.new(1, 0, 0, 32)
+		sectionWrapper.AutomaticSize     = Enum.AutomaticSize.Y
+		sectionWrapper.BackgroundTransparency = 1
+		sectionWrapper.BorderSizePixel   = 0
+		sectionWrapper.LayoutOrder       = 1
+		local secList = Instance.new("UIListLayout", sectionWrapper)
+		secList.SortOrder = Enum.SortOrder.LayoutOrder
+		secList.Padding   = UDim.new(0, 3)
+
+		-- Header row (the "Watermark" button)
+		local header = Instance.new("Frame", sectionWrapper)
+		header.Name             = "WatermarkHeader"
+		header.Size             = UDim2.new(1, 0, 0, 32)
+		header.BackgroundColor3 = Color3.fromRGB(14, 14, 19)
+		header.BorderSizePixel  = 0
+		header.LayoutOrder      = 1
+		local hCorner = Instance.new("UICorner", header)
+		hCorner.CornerRadius = UDim.new(0, 6)
+
+		-- Expand icon on the left
+		local hIcon = Instance.new("ImageButton", header)
+		hIcon.Size                = UDim2.new(0, 18, 0, 18)
+		hIcon.Position            = UDim2.new(0, 6, 0.5, -9)
+		hIcon.BackgroundTransparency = 1
+		hIcon.BorderSizePixel     = 0
+		hIcon.Image               = "rbxassetid://112384738137814"
+		hIcon.ImageColor3         = Color3.fromRGB(160, 160, 180)
+
+		-- "Watermark" label
+		local hLabel = Instance.new("TextLabel", header)
+		hLabel.Size                  = UDim2.new(1, -30, 1, 0)
+		hLabel.Position              = UDim2.new(0, 30, 0, 0)
+		hLabel.BackgroundTransparency = 1
+		hLabel.BorderSizePixel       = 0
+		hLabel.FontFace              = Font.new([[rbxasset://fonts/families/JosefinSans.json]], Enum.FontWeight.Regular, Enum.FontStyle.Normal)
+		hLabel.TextSize              = 13
+		hLabel.TextColor3            = Color3.fromRGB(200, 200, 215)
+		hLabel.TextXAlignment        = Enum.TextXAlignment.Left
+		hLabel.Text                  = "Watermark"
+
+		-- Sub-panel that holds the 3 toggles
+		local subPanel = Instance.new("Frame", sectionWrapper)
+		subPanel.Name             = "WatermarkSubPanel"
+		subPanel.Size             = UDim2.new(1, 0, 0, 0)
+		subPanel.AutomaticSize    = Enum.AutomaticSize.Y
+		subPanel.BackgroundColor3 = Color3.fromRGB(11, 11, 15)
+		subPanel.BorderSizePixel  = 0
+		subPanel.Visible          = false
+		subPanel.LayoutOrder      = 2
+		local spCorner = Instance.new("UICorner", subPanel)
+		spCorner.CornerRadius = UDim.new(0, 6)
+		local spList = Instance.new("UIListLayout", subPanel)
+		spList.SortOrder = Enum.SortOrder.LayoutOrder
+		spList.Padding   = UDim.new(0, 4)
+		local spPad = Instance.new("UIPadding", subPanel)
+		spPad.PaddingLeft   = UDim.new(0, 8)
+		spPad.PaddingRight  = UDim.new(0, 8)
+		spPad.PaddingTop    = UDim.new(0, 6)
+		spPad.PaddingBottom = UDim.new(0, 6)
+
+		local expanded = false
+		local tweenT   = TweenInfo.new(0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+
+		local function setExpanded(v)
+			expanded      = v
+			subPanel.Visible = expanded
+			hIcon.Image   = expanded
+				and "rbxassetid://121304296213645"  -- minimize
+				or  "rbxassetid://112384738137814"  -- expand
+		end
+
+		header.Active = true
+		header.InputBegan:Connect(function(input)
+			if input.UserInputType == Enum.UserInputType.MouseButton1
+				or input.UserInputType == Enum.UserInputType.MouseButton2 then
+				setExpanded(not expanded)
+			end
+		end)
+		hIcon.MouseButton1Click:Connect(function()
+			setExpanded(not expanded)
 		end)
 
-		settingTab:AddToggle("FPS Counter", true, function(on)
-			fpsBadge.Visible = on
-		end)
+		-- Helper: add a plain toggle row inside the subPanel (no icon, no sub-panel)
+		local function addSubToggle(parent, label, default, callback)
+			local state = (default == true)
 
-		settingTab:AddToggle("Ping Counter", true, function(on)
-			pingBadge.Visible = on
-		end)
+			local row = Instance.new("Frame", parent)
+			row.Name             = "SubToggle_" .. label
+			row.Size             = UDim2.new(1, 0, 0, 28)
+			row.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+			row.BorderSizePixel  = 0
+			row.LayoutOrder      = #parent:GetChildren()
+			local rc = Instance.new("UICorner", row); rc.CornerRadius = UDim.new(0, 5)
+
+			local lbl = Instance.new("TextLabel", row)
+			lbl.Size                  = UDim2.new(1, -50, 1, 0)
+			lbl.Position              = UDim2.new(0, 8, 0, 0)
+			lbl.BackgroundTransparency = 1
+			lbl.BorderSizePixel       = 0
+			lbl.FontFace              = Font.new([[rbxasset://fonts/families/JosefinSans.json]], Enum.FontWeight.Regular, Enum.FontStyle.Normal)
+			lbl.TextSize              = 12
+			lbl.TextColor3            = Color3.fromRGB(180, 180, 200)
+			lbl.TextXAlignment        = Enum.TextXAlignment.Left
+			lbl.Text                  = label
+
+			local track = Instance.new("Frame", row)
+			track.Size             = UDim2.new(0, 34, 0, 18)
+			track.Position         = UDim2.new(1, -40, 0.5, -9)
+			track.BackgroundColor3 = state and Color3.fromRGB(81, 81, 110) or Color3.fromRGB(40, 40, 55)
+			track.BorderSizePixel  = 0
+			local tc = Instance.new("UICorner", track); tc.CornerRadius = UDim.new(1, 0)
+
+			local knob = Instance.new("Frame", track)
+			knob.Size             = UDim2.new(0, 12, 0, 12)
+			knob.Position         = state and UDim2.new(1, -15, 0.5, -6) or UDim2.new(0, 3, 0.5, -6)
+			knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+			knob.BorderSizePixel  = 0
+			local kc = Instance.new("UICorner", knob); kc.CornerRadius = UDim.new(1, 0)
+
+			local function set(newState)
+				state = newState
+				TweenService:Create(track, tweenT, {
+					BackgroundColor3 = state and Color3.fromRGB(81, 81, 110) or Color3.fromRGB(40, 40, 55)
+				}):Play()
+				TweenService:Create(knob, tweenT, {
+					Position = state and UDim2.new(1, -15, 0.5, -6) or UDim2.new(0, 3, 0.5, -6)
+				}):Play()
+				if callback then callback(state) end
+			end
+
+			row.Active = true
+			row.InputBegan:Connect(function(input)
+				if input.UserInputType == Enum.UserInputType.MouseButton1 then
+					set(not state)
+				end
+			end)
+
+			if callback then callback(state) end
+		end
+
+		-- The 3 sub-toggles inside the Watermark section
+		addSubToggle(subPanel, "Hub Name",    true, function(on) wmName.Visible    = on end)
+		addSubToggle(subPanel, "FPS Counter", true, function(on) fpsBadge.Visible  = on end)
+		addSubToggle(subPanel, "Ping Counter",true, function(on) pingBadge.Visible = on end)
 	end
 
 	return Window
