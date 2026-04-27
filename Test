@@ -319,136 +319,251 @@ local function makeToggleRow(parent, label, fontSize, default, callback)
 	return set;
 end;
 
--- ── makeColorPicker: full HSV picker (gradient canvas + hue bar) ─────────────
--- Returns a wrapper frame (hidden by default) + a getter fn getCurrentColor()
+-- ── makeColorPicker: HSV canvas + hue bar + transparency bar + RGB input ────
 local function makeColorPicker(parent, defaultColor, onChange)
 	defaultColor = defaultColor or Color3.fromRGB(255, 255, 255);
 
-	-- Outer wrapper, hidden until opened
+	-- Total height: 130 (canvas) + 8 gap + 14 (hue bar height but it's vertical)
+	-- Layout: canvas left, hue bar right, alpha bar below, RGB input bottom
+	-- Fixed pixel height so it shows fully on first open: 220px
+	local PICK_H = 220;
+
 	local G2L_wrap = Instance.new("Frame", parent);
 	G2L_wrap["Name"]             = [[ColorPickerWrap]];
-	G2L_wrap["Size"]             = UDim2.new(1, 0, 0, 175);
-	G2L_wrap["BackgroundColor3"] = Color3.fromRGB(11, 11, 15);
+	G2L_wrap["Size"]             = UDim2.new(1, 0, 0, PICK_H);
+	G2L_wrap["BackgroundColor3"] = Color3.fromRGB(14, 14, 19);
 	G2L_wrap["BorderSizePixel"]  = 0;
 	G2L_wrap["Visible"]          = false;
-	G2L_wrap["ClipsDescendants"] = true;
+	G2L_wrap["ClipsDescendants"] = false;
 	local G2L_wc = Instance.new("UICorner", G2L_wrap);
 	G2L_wc["CornerRadius"] = UDim.new(0, 6);
+	local G2L_ws = Instance.new("UIStroke", G2L_wrap);
+	G2L_ws["Thickness"] = 1;
+	G2L_ws["Color"]     = Color3.fromRGB(40, 40, 55);
 
-	-- SV canvas (saturation/value)
+	-- ── SV Canvas ─────────────────────────────────────────────────────────────
+	-- rbxassetid://4155801252 = white→transparent left, black→transparent bottom
 	local G2L_canvas = Instance.new("ImageLabel", G2L_wrap);
 	G2L_canvas["Name"]             = [[SVCanvas]];
-	G2L_canvas["Size"]             = UDim2.new(1, -22, 1, -30);
-	G2L_canvas["Position"]         = UDim2.new(0, 4, 0, 4);
+	G2L_canvas["Size"]             = UDim2.new(1, -30, 0, 130);
+	G2L_canvas["Position"]         = UDim2.new(0, 6, 0, 6);
 	G2L_canvas["BorderSizePixel"]  = 0;
 	G2L_canvas["BackgroundColor3"] = Color3.fromRGB(255, 0, 0);
-	-- White-to-transparent left gradient layered with black bottom gradient
 	G2L_canvas["Image"]            = [[rbxassetid://4155801252]];
+	G2L_canvas["ScaleType"]        = Enum.ScaleType.Stretch;
 	local G2L_cc = Instance.new("UICorner", G2L_canvas);
 	G2L_cc["CornerRadius"] = UDim.new(0, 4);
 
 	-- SV cursor dot
 	local G2L_dot = Instance.new("Frame", G2L_canvas);
 	G2L_dot["Name"]             = [[Cursor]];
-	G2L_dot["Size"]             = UDim2.new(0, 10, 0, 10);
+	G2L_dot["Size"]             = UDim2.new(0, 12, 0, 12);
 	G2L_dot["AnchorPoint"]      = Vector2.new(0.5, 0.5);
 	G2L_dot["Position"]         = UDim2.new(1, 0, 0, 0);
 	G2L_dot["BackgroundColor3"] = Color3.fromRGB(255, 255, 255);
 	G2L_dot["BorderSizePixel"]  = 0;
-	G2L_dot["ZIndex"]           = 3;
+	G2L_dot["ZIndex"]           = 5;
 	local G2L_dotc = Instance.new("UICorner", G2L_dot);
 	G2L_dotc["CornerRadius"] = UDim.new(1, 0);
 	local G2L_dots = Instance.new("UIStroke", G2L_dot);
-	G2L_dots["Thickness"] = 1.5;
+	G2L_dots["Thickness"] = 2;
 	G2L_dots["Color"]     = Color3.fromRGB(0, 0, 0);
 
-	-- Hue bar (vertical, right side)
-	local G2L_huebar = Instance.new("ImageLabel", G2L_wrap);
+	-- ── Hue bar (vertical, right side) ────────────────────────────────────────
+	-- Build hue gradient from ColorSequence since rbx asset may not load
+	local G2L_huebar = Instance.new("Frame", G2L_wrap);
 	G2L_huebar["Name"]             = [[HueBar]];
-	G2L_huebar["Size"]             = UDim2.new(0, 14, 1, -30);
-	G2L_huebar["Position"]         = UDim2.new(1, -18, 0, 4);
+	G2L_huebar["Size"]             = UDim2.new(0, 16, 0, 130);
+	G2L_huebar["Position"]         = UDim2.new(1, -22, 0, 6);
 	G2L_huebar["BorderSizePixel"]  = 0;
 	G2L_huebar["BackgroundColor3"] = Color3.fromRGB(255, 255, 255);
-	G2L_huebar["Image"]            = [[rbxassetid://4155821315]];
 	local G2L_hbc = Instance.new("UICorner", G2L_huebar);
 	G2L_hbc["CornerRadius"] = UDim.new(0, 4);
+
+	-- Build hue gradient using 7 colored frames stacked
+	local hueColors = {
+		Color3.fromRGB(255,0,0);
+		Color3.fromRGB(255,128,0);
+		Color3.fromRGB(255,255,0);
+		Color3.fromRGB(0,255,0);
+		Color3.fromRGB(0,255,255);
+		Color3.fromRGB(0,0,255);
+		Color3.fromRGB(255,0,255);
+		Color3.fromRGB(255,0,0);
+	};
+	for i = 1, #hueColors - 1 do
+		local G2L_seg = Instance.new("Frame", G2L_huebar);
+		G2L_seg["BorderSizePixel"]  = 0;
+		G2L_seg["Size"]             = UDim2.new(1, 0, 1/(#hueColors-1), 0);
+		G2L_seg["Position"]         = UDim2.new(0, 0, (i-1)/(#hueColors-1), 0);
+		G2L_seg["BackgroundColor3"] = hueColors[i];
+		G2L_seg["ZIndex"]           = 1;
+		local G2L_segGrad = Instance.new("UIGradient", G2L_seg);
+		G2L_segGrad["Color"]    = ColorSequence.new(hueColors[i], hueColors[i+1]);
+		G2L_segGrad["Rotation"] = 90;
+		if i == 1 then
+			local G2L_segtc = Instance.new("UICorner", G2L_seg);
+			G2L_segtc["CornerRadius"] = UDim.new(0, 4);
+		elseif i == #hueColors - 1 then
+			local G2L_segbc = Instance.new("UICorner", G2L_seg);
+			G2L_segbc["CornerRadius"] = UDim.new(0, 4);
+		end;
+	end;
 
 	-- Hue cursor line
 	local G2L_huecur = Instance.new("Frame", G2L_huebar);
 	G2L_huecur["Name"]             = [[HueCursor]];
-	G2L_huecur["Size"]             = UDim2.new(1, 4, 0, 3);
-	G2L_huecur["Position"]         = UDim2.new(0, -2, 0, 0);
+	G2L_huecur["Size"]             = UDim2.new(1, 6, 0, 3);
+	G2L_huecur["Position"]         = UDim2.new(0, -3, 0, 0);
 	G2L_huecur["AnchorPoint"]      = Vector2.new(0, 0.5);
 	G2L_huecur["BackgroundColor3"] = Color3.fromRGB(255, 255, 255);
 	G2L_huecur["BorderSizePixel"]  = 0;
-	G2L_huecur["ZIndex"]           = 3;
+	G2L_huecur["ZIndex"]           = 6;
 	local G2L_huecurc = Instance.new("UICorner", G2L_huecur);
 	G2L_huecurc["CornerRadius"] = UDim.new(1, 0);
+	local G2L_huecurs = Instance.new("UIStroke", G2L_huecur);
+	G2L_huecurs["Thickness"] = 1;
+	G2L_huecurs["Color"]     = Color3.fromRGB(0, 0, 0);
 
-	-- RGB readout label at bottom
-	local G2L_readout = Instance.new("TextLabel", G2L_wrap);
-	G2L_readout["Name"]               = [[RGBReadout]];
-	G2L_readout["Size"]               = UDim2.new(1, 0, 0, 22);
-	G2L_readout["Position"]           = UDim2.new(0, 0, 1, -24);
-	G2L_readout["BackgroundTransparency"] = 1;
-	G2L_readout["BorderSizePixel"]    = 0;
-	G2L_readout["FontFace"]           = G2L["FONT_JOSEFIN"];
-	G2L_readout["TextSize"]           = 12;
-	G2L_readout["TextColor3"]         = Color3.fromRGB(180, 180, 200);
-	G2L_readout["TextXAlignment"]     = Enum.TextXAlignment.Left;
-	G2L_readout["Text"]               = [[255, 255, 255]];
+	-- ── Transparency bar (horizontal, below canvas) ───────────────────────────
+	local G2L_alphabar = Instance.new("Frame", G2L_wrap);
+	G2L_alphabar["Name"]             = [[AlphaBar]];
+	G2L_alphabar["Size"]             = UDim2.new(1, -30, 0, 16);
+	G2L_alphabar["Position"]         = UDim2.new(0, 6, 0, 142);
+	G2L_alphabar["BorderSizePixel"]  = 0;
+	G2L_alphabar["BackgroundColor3"] = Color3.fromRGB(255, 255, 255);
+	local G2L_abc = Instance.new("UICorner", G2L_alphabar);
+	G2L_abc["CornerRadius"] = UDim.new(0, 4);
 
-	-- Internal HSV state
+	-- Checkerboard pattern to show transparency
+	local G2L_checker = Instance.new("ImageLabel", G2L_alphabar);
+	G2L_checker["Size"]                = UDim2.new(1, 0, 1, 0);
+	G2L_checker["BackgroundTransparency"] = 1;
+	G2L_checker["BorderSizePixel"]    = 0;
+	G2L_checker["Image"]              = [[rbxassetid://2626923873]]; -- checkerboard
+	G2L_checker["ScaleType"]          = Enum.ScaleType.Tile;
+	G2L_checker["TileSize"]           = UDim2.new(0, 8, 0, 8);
+	G2L_checker["ZIndex"]             = 1;
+	local G2L_chkc = Instance.new("UICorner", G2L_checker);
+	G2L_chkc["CornerRadius"] = UDim.new(0, 4);
+
+	-- Gradient overlay (color → transparent)
+	local G2L_alphaGrad = Instance.new("Frame", G2L_alphabar);
+	G2L_alphaGrad["Size"]             = UDim2.new(1, 0, 1, 0);
+	G2L_alphaGrad["BackgroundColor3"] = Color3.fromRGB(255, 0, 0);
+	G2L_alphaGrad["BorderSizePixel"]  = 0;
+	G2L_alphaGrad["ZIndex"]           = 2;
+	local G2L_alphaGradc = Instance.new("UICorner", G2L_alphaGrad);
+	G2L_alphaGradc["CornerRadius"] = UDim.new(0, 4);
+	local G2L_alphaGradg = Instance.new("UIGradient", G2L_alphaGrad);
+	G2L_alphaGradg["Transparency"] = NumberSequence.new{
+		NumberSequenceKeypoint.new(0, 0);
+		NumberSequenceKeypoint.new(1, 1);
+	};
+
+	-- Alpha cursor
+	local G2L_alphacur = Instance.new("Frame", G2L_alphabar);
+	G2L_alphacur["Name"]             = [[AlphaCursor]];
+	G2L_alphacur["Size"]             = UDim2.new(0, 3, 1, 6);
+	G2L_alphacur["AnchorPoint"]      = Vector2.new(0.5, 0.5);
+	G2L_alphacur["Position"]         = UDim2.new(0, 0, 0.5, 0);
+	G2L_alphacur["BackgroundColor3"] = Color3.fromRGB(255, 255, 255);
+	G2L_alphacur["BorderSizePixel"]  = 0;
+	G2L_alphacur["ZIndex"]           = 6;
+	local G2L_alphacurc = Instance.new("UICorner", G2L_alphacur);
+	G2L_alphacurc["CornerRadius"] = UDim.new(1, 0);
+	local G2L_alphacurs = Instance.new("UIStroke", G2L_alphacur);
+	G2L_alphacurs["Thickness"] = 1;
+	G2L_alphacurs["Color"]     = Color3.fromRGB(0, 0, 0);
+
+	-- ── RGB TextBox input ──────────────────────────────────────────────────────
+	local G2L_inputBox = Instance.new("TextBox", G2L_wrap);
+	G2L_inputBox["Name"]               = [[RGBInput]];
+	G2L_inputBox["Size"]               = UDim2.new(1, -30, 0, 22);
+	G2L_inputBox["Position"]           = UDim2.new(0, 6, 0, 164);
+	G2L_inputBox["BackgroundColor3"]   = Color3.fromRGB(20, 20, 28);
+	G2L_inputBox["BorderSizePixel"]    = 0;
+	G2L_inputBox["FontFace"]           = G2L["FONT_JOSEFIN"];
+	G2L_inputBox["TextSize"]           = 12;
+	G2L_inputBox["TextColor3"]         = Color3.fromRGB(200, 200, 220);
+	G2L_inputBox["PlaceholderText"]    = [[255, 255, 255]];
+	G2L_inputBox["PlaceholderColor3"]  = Color3.fromRGB(100, 100, 120);
+	G2L_inputBox["Text"]               = [[255, 255, 255]];
+	G2L_inputBox["ClearTextOnFocus"]   = false;
+	G2L_inputBox["TextXAlignment"]     = Enum.TextXAlignment.Left;
+	local G2L_ibc = Instance.new("UICorner", G2L_inputBox);
+	G2L_ibc["CornerRadius"] = UDim.new(0, 4);
+	local G2L_ibp = Instance.new("UIPadding", G2L_inputBox);
+	G2L_ibp["PaddingLeft"] = UDim.new(0, 6);
+	local G2L_ibs = Instance.new("UIStroke", G2L_inputBox);
+	G2L_ibs["Thickness"] = 1;
+	G2L_ibs["Color"]     = Color3.fromRGB(50, 50, 70);
+
+	-- Alpha percentage label
+	local G2L_alphaLbl = Instance.new("TextLabel", G2L_wrap);
+	G2L_alphaLbl["Name"]               = [[AlphaLabel]];
+	G2L_alphaLbl["Size"]               = UDim2.new(0, 22, 0, 22);
+	G2L_alphaLbl["Position"]           = UDim2.new(1, -22, 0, 164);
+	G2L_alphaLbl["BackgroundTransparency"] = 1;
+	G2L_alphaLbl["BorderSizePixel"]    = 0;
+	G2L_alphaLbl["FontFace"]           = G2L["FONT_JOSEFIN"];
+	G2L_alphaLbl["TextSize"]           = 10;
+	G2L_alphaLbl["TextColor3"]         = Color3.fromRGB(150, 150, 170);
+	G2L_alphaLbl["Text"]               = [[100%]];
+
+	-- ── Internal state ─────────────────────────────────────────────────────────
 	local h, s, v = Color3.toHSV(defaultColor);
+	local alpha    = 1;  -- 1 = fully opaque, 0 = fully transparent
 
-	local function updateFromHSV()
+	local function updateFromHSV(fireCallback)
 		local col = Color3.fromHSV(h, s, v);
-		G2L_canvas["BackgroundColor3"] = Color3.fromHSV(h, 1, 1);
-		G2L_readout["Text"] = math.round(col.R*255) .. [[, ]] .. math.round(col.G*255) .. [[, ]] .. math.round(col.B*255);
-		if onChange then onChange(col) end;
-		return col;
+		G2L_canvas["BackgroundColor3"]   = Color3.fromHSV(h, 1, 1);
+		G2L_alphaGrad["BackgroundColor3"]= Color3.fromHSV(h, 1, 1);
+		local r = math.round(col.R*255);
+		local g = math.round(col.G*255);
+		local b = math.round(col.B*255);
+		G2L_inputBox["Text"] = r .. [[, ]] .. g .. [[, ]] .. b;
+		G2L_alphaLbl["Text"] = math.round(alpha * 100) .. [[%]];
+		if fireCallback ~= false and onChange then onChange(col, alpha) end;
 	end;
 
-	-- Place SV cursor
 	local function placeSVCursor()
 		G2L_dot["Position"] = UDim2.new(s, 0, 1 - v, 0);
 	end;
 	local function placeHueCursor()
-		G2L_huecur["Position"] = UDim2.new(0, -2, 1 - h, 0);
+		G2L_huecur["Position"] = UDim2.new(0, -3, 1 - h, 0);
+	end;
+	local function placeAlphaCursor()
+		G2L_alphacur["Position"] = UDim2.new(alpha, 0, 0.5, 0);
 	end;
 
 	placeSVCursor();
 	placeHueCursor();
-	updateFromHSV();
+	placeAlphaCursor();
+	updateFromHSV(false);
 
-	-- SV canvas drag
-	local svDragging = false;
-	G2L_canvas.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1
-			or input.UserInputType == Enum.UserInputType.Touch then
-			svDragging = true;
-		end;
-	end);
-	G2L_canvas.InputEnded:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1
-			or input.UserInputType == Enum.UserInputType.Touch then
-			svDragging = false;
-		end;
-	end);
+	-- ── Drag logic ─────────────────────────────────────────────────────────────
+	local svDragging    = false;
+	local hueDragging   = false;
+	local alphaDragging = false;
 
-	-- Hue bar drag
-	local hueDragging = false;
-	G2L_huebar.InputBegan:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1
-			or input.UserInputType == Enum.UserInputType.Touch then
-			hueDragging = true;
-		end;
+	G2L_canvas.InputBegan:Connect(function(i)
+		if i.UserInputType == Enum.UserInputType.MouseButton1 then svDragging = true end;
 	end);
-	G2L_huebar.InputEnded:Connect(function(input)
-		if input.UserInputType == Enum.UserInputType.MouseButton1
-			or input.UserInputType == Enum.UserInputType.Touch then
-			hueDragging = false;
-		end;
+	G2L_canvas.InputEnded:Connect(function(i)
+		if i.UserInputType == Enum.UserInputType.MouseButton1 then svDragging = false end;
+	end);
+	G2L_huebar.InputBegan:Connect(function(i)
+		if i.UserInputType == Enum.UserInputType.MouseButton1 then hueDragging = true end;
+	end);
+	G2L_huebar.InputEnded:Connect(function(i)
+		if i.UserInputType == Enum.UserInputType.MouseButton1 then hueDragging = false end;
+	end);
+	G2L_alphabar.InputBegan:Connect(function(i)
+		if i.UserInputType == Enum.UserInputType.MouseButton1 then alphaDragging = true end;
+	end);
+	G2L_alphabar.InputEnded:Connect(function(i)
+		if i.UserInputType == Enum.UserInputType.MouseButton1 then alphaDragging = false end;
 	end);
 
 	G2L["svc_run"].Heartbeat:Connect(function()
@@ -456,8 +571,8 @@ local function makeColorPicker(parent, defaultColor, onChange)
 		local mp = G2L["svc_input"]:GetMouseLocation();
 
 		if svDragging then
-			local ap  = G2L_canvas.AbsolutePosition;
-			local sz  = G2L_canvas.AbsoluteSize;
+			local ap = G2L_canvas.AbsolutePosition;
+			local sz = G2L_canvas.AbsoluteSize;
 			s = math.clamp((mp.X - ap.X) / sz.X, 0, 1);
 			v = 1 - math.clamp((mp.Y - ap.Y) / sz.Y, 0, 1);
 			placeSVCursor();
@@ -465,16 +580,44 @@ local function makeColorPicker(parent, defaultColor, onChange)
 		end;
 
 		if hueDragging then
-			local ap  = G2L_huebar.AbsolutePosition;
-			local sz  = G2L_huebar.AbsoluteSize;
+			local ap = G2L_huebar.AbsolutePosition;
+			local sz = G2L_huebar.AbsoluteSize;
 			h = 1 - math.clamp((mp.Y - ap.Y) / sz.Y, 0, 1);
 			placeHueCursor();
 			updateFromHSV();
 		end;
+
+		if alphaDragging then
+			local ap = G2L_alphabar.AbsolutePosition;
+			local sz = G2L_alphabar.AbsoluteSize;
+			alpha = math.clamp((mp.X - ap.X) / sz.X, 0, 1);
+			placeAlphaCursor();
+			updateFromHSV();
+		end;
+	end);
+
+	-- ── RGB TextBox: type values like "255, 0, 128" ────────────────────────────
+	G2L_inputBox.FocusLost:Connect(function()
+		local txt = G2L_inputBox.Text:gsub("%s", "");
+		local r, g, b = txt:match("^(%d+),(%d+),(%d+)$");
+		if r and g and b then
+			r = math.clamp(tonumber(r), 0, 255);
+			g = math.clamp(tonumber(g), 0, 255);
+			b = math.clamp(tonumber(b), 0, 255);
+			local col = Color3.fromRGB(r, g, b);
+			h, s, v   = Color3.toHSV(col);
+			placeSVCursor();
+			placeHueCursor();
+			updateFromHSV();
+		else
+			-- invalid input: restore current value
+			local col = Color3.fromHSV(h, s, v);
+			G2L_inputBox["Text"] = math.round(col.R*255)..[[, ]]..math.round(col.G*255)..[[, ]]..math.round(col.B*255);
+		end;
 	end);
 
 	local function getCurrentColor()
-		return Color3.fromHSV(h, s, v);
+		return Color3.fromHSV(h, s, v), alpha;
 	end;
 
 	return G2L_wrap, getCurrentColor;
