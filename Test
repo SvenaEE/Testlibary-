@@ -3,1165 +3,821 @@
 88' Y8b 88    88   `88'        VP  `8D      88      88    88 d8' `8b 
 88      88    88    88            odD'      88      88    88 88ooo88 
 88  ooo 88    88    88          .88'        88      88    88 88~~~88 
-88. ~8~ 88b  d88   .88.        j88.         88booo. 88b  d88 88   88
- Y888P  ~Y8888P' Y888888P      888888D      Y88888P ~Y8888P' YP   YP
-                         UI Library v1.0
+88. ~8~ 88b  d88   .88.        j88.         88booo. 88b  d88 88   88    @uniquadev
+ Y888P  ~Y8888P' Y888888P      888888D      Y88888P ~Y8888P' YP   YP  UI LIBRARY
 ]=]
 
-local Library = {}
-Library.__index = Library
+-- UI Library v2.0 | by uniquadev
+-- Instances: dynamic | Scripts: inline | Modules: 0
 
--- ── Services ────────────────────────────────────────────────────────────────
-local Players              = game:GetService("Players")
-local RunService           = game:GetService("RunService")
-local UserInputService     = game:GetService("UserInputService")
-local TweenService         = game:GetService("TweenService")
-local ContextActionService = game:GetService("ContextActionService")
-local LocalPlayer          = Players.LocalPlayer
-local DRAG_SMOOTH = 0.18  -- lower = smoother/slower, higher = snappier
+local G2L = {};
 
+-- ── Services ─────────────────────────────────────────────────────────────────
+G2L["svc_players"]   = game:GetService("Players");
+G2L["svc_run"]       = game:GetService("RunService");
+G2L["svc_input"]     = game:GetService("UserInputService");
+G2L["svc_tween"]     = game:GetService("TweenService");
+G2L["svc_cas"]       = game:GetService("ContextActionService");
+G2L["svc_debris"]    = game:GetService("Debris");
+G2L["localplayer"]   = G2L["svc_players"].LocalPlayer;
 
-local HOVER_COLOR  = Color3.fromRGB(28, 28, 38)   -- slightly lighter than base
-local NORMAL_COLOR = Color3.fromRGB(14, 14, 19)   -- base row color (same as rows)
-local SHIMMER_T    = TweenInfo.new(0.35, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
-local FADE_T       = TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+-- ── Constants ─────────────────────────────────────────────────────────────────
+G2L["DRAG_SMOOTH"]   = 0.18;
+G2L["HOVER_COL"]     = Color3.fromRGB(28, 28, 38);
+G2L["OFFSCREEN_X"]   = -1900;
+G2L["TAB_WIDTH"]     = 259;
+G2L["TAB_CONFIGS"]   = {
+	{  22, 26, 728 };  -- 1 Combat
+	{ 294, 26, 498 };  -- 2 Movement
+	{ 563, 26, 418 };  -- 3 Player
+	{ 831, 26, 318 };  -- 4 Render
+	{1097, 26, 254 };  -- 5 Misc
+	{1366, 26, 153 };  -- 6 Setting
+};
+G2L["TAB_ICONS"]     = {
+	[[rbxassetid://81872698913435]];
+	[[rbxassetid://112426178972099]];
+	[[rbxassetid://125020872044147]];
+	[[rbxassetid://100033680381365]];
+	[[rbxassetid://120517954878160]];
+	[[rbxassetid://116544501716299]];
+};
+G2L["TWEEN_TOGGLE"]  = TweenInfo.new(0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.Out);
+G2L["TWEEN_SLIDE"]   = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out);
+G2L["TWEEN_FADE"]    = TweenInfo.new(0.18, Enum.EasingStyle.Quad,  Enum.EasingDirection.Out);
+G2L["TWEEN_SHIMMER"] = TweenInfo.new(0.35, Enum.EasingStyle.Sine,  Enum.EasingDirection.InOut);
+G2L["TWEEN_OUT"]     = TweenInfo.new(0.40, Enum.EasingStyle.Quint, Enum.EasingDirection.In);
+G2L["TWEEN_IN"]      = TweenInfo.new(0.40, Enum.EasingStyle.Quint, Enum.EasingDirection.Out);
+G2L["FONT_JOSEFIN"]  = Font.new([[rbxasset://fonts/families/JosefinSans.json]], Enum.FontWeight.Regular, Enum.FontStyle.Normal);
+G2L["FONT_JOSEFIN_B"]= Font.new([[rbxasset://fonts/families/JosefinSans.json]], Enum.FontWeight.Bold,    Enum.FontStyle.Normal);
 
+-- ── spawnSparkle: burst a tiny particle dot out of a row ─────────────────────
 local function spawnSparkle(parent)
-	-- Pick a random position along the row
-	local dot = Instance.new("Frame", parent)
-	dot.ZIndex           = 10
-	dot.BorderSizePixel  = 0
-	dot.BackgroundColor3 = Color3.fromRGB(
-		math.random(160, 220),
-		math.random(160, 220),
-		math.random(200, 255)
-	)
-	local sz = math.random(2, 4)
-	dot.Size             = UDim2.new(0, sz, 0, sz)
-	dot.AnchorPoint      = Vector2.new(0.5, 0.5)
-	dot.Position         = UDim2.new(math.random(10, 90) / 100, 0, 0.5, 0)
-	dot.BackgroundTransparency = 0.3
-	local dc = Instance.new("UICorner", dot); dc.CornerRadius = UDim.new(1, 0)
+	local G2L_dot = Instance.new("Frame", parent);
+	G2L_dot["ZIndex"]           = 10;
+	G2L_dot["BorderSizePixel"]  = 0;
+	G2L_dot["BackgroundColor3"] = Color3.fromRGB(
+		math.random(160, 220), math.random(160, 220), math.random(200, 255));
+	local sz = math.random(2, 4);
+	G2L_dot["Size"]             = UDim2.new(0, sz, 0, sz);
+	G2L_dot["AnchorPoint"]      = Vector2.new(0.5, 0.5);
+	G2L_dot["Position"]         = UDim2.new(math.random(10, 90) / 100, 0, 0.5, 0);
+	G2L_dot["BackgroundTransparency"] = 0.3;
+	local G2L_dc = Instance.new("UICorner", G2L_dot);
+	G2L_dc["CornerRadius"] = UDim.new(1, 0);
+	G2L["svc_tween"]:Create(G2L_dot,
+		TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
+		["Position"]               = UDim2.new(G2L_dot.Position.X.Scale, 0, G2L_dot.Position.Y.Scale - 0.6, 0);
+		["BackgroundTransparency"] = 1;
+		["Size"]                   = UDim2.new(0, 1, 0, 1);
+	}):Play();
+	G2L["svc_debris"]:AddItem(G2L_dot, 0.55);
+end;
 
-	-- Float upward and fade out
-	local targetY = dot.Position.Y.Scale - 0.6
-	TweenService:Create(dot, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-		Position            = UDim2.new(dot.Position.X.Scale, 0, targetY, 0),
-		BackgroundTransparency = 1,
-		Size                = UDim2.new(0, 1, 0, 1),
-	}):Play()
-	game:GetService("Debris"):AddItem(dot, 0.55)
-end
-
+-- ── addHoverFx: shimmer sweep + sparkles + background brighten ───────────────
 local function addHoverFx(row)
-	local baseColor = row.BackgroundColor3
+	local baseCol = row.BackgroundColor3;
 
-	-- Shimmer highlight strip (sits on top, sweeps across)
-	local shimmer = Instance.new("Frame", row)
-	shimmer.Name              = "Shimmer"
-	shimmer.ZIndex            = 5
-	shimmer.BorderSizePixel   = 0
-	shimmer.BackgroundColor3  = Color3.fromRGB(255, 255, 255)
-	shimmer.BackgroundTransparency = 1
-	shimmer.Size              = UDim2.new(0.4, 0, 1, 0)
-	shimmer.Position          = UDim2.new(-0.4, 0, 0, 0)
-	shimmer.ClipsDescendants  = false
-	local shCorner = Instance.new("UICorner", shimmer); shCorner.CornerRadius = UDim.new(0, 6)
-	local shGrad   = Instance.new("UIGradient", shimmer)
-	shGrad.Transparency = NumberSequence.new{
-		NumberSequenceKeypoint.new(0,   1),
-		NumberSequenceKeypoint.new(0.5, 0.88),
-		NumberSequenceKeypoint.new(1,   1),
-	}
-	shGrad.Rotation = 0
+	local G2L_sh = Instance.new("Frame", row);
+	G2L_sh["Name"]             = [[Shimmer]];
+	G2L_sh["ZIndex"]           = 5;
+	G2L_sh["BorderSizePixel"]  = 0;
+	G2L_sh["BackgroundColor3"] = Color3.fromRGB(255, 255, 255);
+	G2L_sh["BackgroundTransparency"] = 1;
+	G2L_sh["Size"]             = UDim2.new(0.4, 0, 1, 0);
+	G2L_sh["Position"]         = UDim2.new(-0.4, 0, 0, 0);
+	G2L_sh["ClipsDescendants"] = false;
+	local G2L_shc = Instance.new("UICorner", G2L_sh);
+	G2L_shc["CornerRadius"] = UDim.new(0, 6);
+	local G2L_shg = Instance.new("UIGradient", G2L_sh);
+	G2L_shg["Transparency"] = NumberSequence.new{
+		NumberSequenceKeypoint.new(0,   1);
+		NumberSequenceKeypoint.new(0.5, 0.88);
+		NumberSequenceKeypoint.new(1,   1);
+	};
 
-	local isHovered = false
+	local isHovered = false;
 
 	row.MouseEnter:Connect(function()
-		if isHovered then return end
-		isHovered = true
-
-		-- Background brighten
-		TweenService:Create(row, FADE_T, {
-			BackgroundColor3 = HOVER_COLOR
-		}):Play()
-
-		-- Shimmer sweep
-		shimmer.Position = UDim2.new(-0.4, 0, 0, 0)
-		shimmer.BackgroundTransparency = 0.88
-		TweenService:Create(shimmer, SHIMMER_T, {
-			Position = UDim2.new(1.1, 0, 0, 0),
-		}):Play()
+		if isHovered then return end;
+		isHovered = true;
+		G2L["svc_tween"]:Create(row, G2L["TWEEN_FADE"], {["BackgroundColor3"] = G2L["HOVER_COL"]}):Play();
+		G2L_sh["Position"] = UDim2.new(-0.4, 0, 0, 0);
+		G2L_sh["BackgroundTransparency"] = 0.88;
+		G2L["svc_tween"]:Create(G2L_sh, G2L["TWEEN_SHIMMER"], {["Position"] = UDim2.new(1.1, 0, 0, 0)}):Play();
 		task.delay(0.36, function()
-			shimmer.BackgroundTransparency = 1
-			shimmer.Position = UDim2.new(-0.4, 0, 0, 0)
-		end)
-
-		-- Sparkles burst
-		local count = math.random(3, 5)
-		for i = 1, count do
+			G2L_sh["BackgroundTransparency"] = 1;
+			G2L_sh["Position"] = UDim2.new(-0.4, 0, 0, 0);
+		end);
+		for i = 1, math.random(3, 5) do
 			task.delay((i - 1) * 0.07, function()
-				if isHovered then spawnSparkle(row) end
-			end)
-		end
-	end)
+				if isHovered then spawnSparkle(row) end;
+			end);
+		end;
+	end);
 
 	row.MouseLeave:Connect(function()
-		isHovered = false
-		-- Background back to base
-		TweenService:Create(row, FADE_T, {
-			BackgroundColor3 = baseColor
-		}):Play()
-		shimmer.BackgroundTransparency = 1
-	end)
-end
+		isHovered = false;
+		G2L["svc_tween"]:Create(row, G2L["TWEEN_FADE"], {["BackgroundColor3"] = baseCol}):Play();
+		G2L_sh["BackgroundTransparency"] = 1;
+	end);
+end;
 
+-- ── makeDraggable: smooth lerp drag ──────────────────────────────────────────
 local function makeDraggable(frame, handle)
-	handle.Active = true
-
-	local dragging  = false
-	local dragConn  = nil
-	local curX      = 0
-	local curY      = 0
-	local wantX     = 0
-	local wantY     = 0
+	handle["Active"] = true;
+	local dragging = false;
+	local dragConn = nil;
+	local curX, curY, wantX, wantY = 0, 0, 0, 0;
 
 	handle.InputBegan:Connect(function(input)
 		if input.UserInputType ~= Enum.UserInputType.MouseButton1
-			and input.UserInputType ~= Enum.UserInputType.Touch then return end
-
-		dragging = true
-
-		-- Normalise: reset AnchorPoint and convert to pure pixel position
-		-- so drag math is always simple and consistent
-		local ap   = frame.AbsolutePosition  -- top-left pixel, ignores AnchorPoint
-		frame.AnchorPoint = Vector2.new(0, 0)
-		frame.Position    = UDim2.new(0, ap.X, 0, ap.Y)
-
-		local mp  = UserInputService:GetMouseLocation()
-		local offX = mp.X - ap.X
-		local offY = mp.Y - ap.Y
-
-		curX  = ap.X
-		curY  = ap.Y
-		wantX = ap.X
-		wantY = ap.Y
-
-		dragConn = RunService.Heartbeat:Connect(function(dt)
-			if not dragging then return end
-
-			local m  = UserInputService:GetMouseLocation()
-			local vp = workspace.CurrentCamera.ViewportSize
-
-			wantX = math.clamp(m.X - offX, 0, vp.X - frame.AbsoluteSize.X)
-			wantY = math.clamp(m.Y - offY, 0, vp.Y - frame.AbsoluteSize.Y)
-
-			-- Smooth lerp toward want position
-			local alpha = math.clamp(dt / DRAG_SMOOTH, 0, 1)
-			curX = curX + (wantX - curX) * alpha
-			curY = curY + (wantY - curY) * alpha
-
-			frame.Position = UDim2.new(0, curX, 0, curY)
-		end)
-	end)
+			and input.UserInputType ~= Enum.UserInputType.Touch then return end;
+		dragging = true;
+		local ap = frame.AbsolutePosition;
+		frame["AnchorPoint"] = Vector2.new(0, 0);
+		frame["Position"]    = UDim2.new(0, ap.X, 0, ap.Y);
+		local mp   = G2L["svc_input"]:GetMouseLocation();
+		local offX = mp.X - ap.X;
+		local offY = mp.Y - ap.Y;
+		curX = ap.X; curY = ap.Y; wantX = ap.X; wantY = ap.Y;
+		dragConn = G2L["svc_run"].Heartbeat:Connect(function(dt)
+			if not dragging then return end;
+			local m  = G2L["svc_input"]:GetMouseLocation();
+			local vp = workspace.CurrentCamera.ViewportSize;
+			wantX = math.clamp(m.X - offX, 0, vp.X - frame.AbsoluteSize.X);
+			wantY = math.clamp(m.Y - offY, 0, vp.Y - frame.AbsoluteSize.Y);
+			local a = math.clamp(dt / G2L["DRAG_SMOOTH"], 0, 1);
+			curX = curX + (wantX - curX) * a;
+			curY = curY + (wantY - curY) * a;
+			frame["Position"] = UDim2.new(0, curX, 0, curY);
+		end);
+	end);
 
 	handle.InputEnded:Connect(function(input)
 		if input.UserInputType ~= Enum.UserInputType.MouseButton1
-			and input.UserInputType ~= Enum.UserInputType.Touch then return end
-		dragging = false
-		if dragConn then
-			dragConn:Disconnect()
-			dragConn = nil
-		end
-	end)
-end
+			and input.UserInputType ~= Enum.UserInputType.Touch then return end;
+		dragging = false;
+		if dragConn then dragConn:Disconnect(); dragConn = nil; end;
+	end);
+end;
 
--- ── Library:Create(hubName, gameName) ───────────────────────────────────────
+-- ── makePill: toggle pill track + knob, returns setPill fn ───────────────────
+local function makePill(parent, state)
+	local G2L_track = Instance.new("Frame", parent);
+	G2L_track["Size"]             = UDim2.new(0, 34, 0, 18);
+	G2L_track["Position"]         = UDim2.new(1, -44, 0.5, -9);
+	G2L_track["BackgroundColor3"] = state and Color3.fromRGB(81,81,110) or Color3.fromRGB(40,40,55);
+	G2L_track["BorderSizePixel"]  = 0;
+	local G2L_tc = Instance.new("UICorner", G2L_track);
+	G2L_tc["CornerRadius"] = UDim.new(1, 0);
+
+	local G2L_knob = Instance.new("Frame", G2L_track);
+	G2L_knob["Size"]             = UDim2.new(0, 12, 0, 12);
+	G2L_knob["Position"]         = state and UDim2.new(1,-15,0.5,-6) or UDim2.new(0,3,0.5,-6);
+	G2L_knob["BackgroundColor3"] = Color3.fromRGB(255, 255, 255);
+	G2L_knob["BorderSizePixel"]  = 0;
+	local G2L_kc = Instance.new("UICorner", G2L_knob);
+	G2L_kc["CornerRadius"] = UDim.new(1, 0);
+
+	local function setPill(newState)
+		G2L["svc_tween"]:Create(G2L_track, G2L["TWEEN_TOGGLE"], {
+			["BackgroundColor3"] = newState and Color3.fromRGB(81,81,110) or Color3.fromRGB(40,40,55);
+		}):Play();
+		G2L["svc_tween"]:Create(G2L_knob, G2L["TWEEN_TOGGLE"], {
+			["Position"] = newState and UDim2.new(1,-15,0.5,-6) or UDim2.new(0,3,0.5,-6);
+		}):Play();
+	end;
+
+	return G2L_track, G2L_knob, setPill;
+end;
+
+-- ── makeClipper: clipping frame for smooth expand/collapse ────────────────────
+local function makeClipper(parent, order)
+	local G2L_clip = Instance.new("Frame", parent);
+	G2L_clip["Name"]             = [[Clipper]];
+	G2L_clip["Size"]             = UDim2.new(1, 0, 0, 0);
+	G2L_clip["BackgroundTransparency"] = 1;
+	G2L_clip["BorderSizePixel"]  = 0;
+	G2L_clip["ClipsDescendants"] = true;
+	G2L_clip["LayoutOrder"]      = order;
+	return G2L_clip;
+end;
+
+-- ── makeInner: dark inner panel with list layout ──────────────────────────────
+local function makeInner(parent)
+	local G2L_inner = Instance.new("Frame", parent);
+	G2L_inner["Name"]             = [[Inner]];
+	G2L_inner["Size"]             = UDim2.new(1, 0, 0, 0);
+	G2L_inner["AutomaticSize"]    = Enum.AutomaticSize.Y;
+	G2L_inner["BackgroundColor3"] = Color3.fromRGB(11, 11, 15);
+	G2L_inner["BorderSizePixel"]  = 0;
+	local G2L_ic = Instance.new("UICorner", G2L_inner);
+	G2L_ic["CornerRadius"] = UDim.new(0, 6);
+	local G2L_il = Instance.new("UIListLayout", G2L_inner);
+	G2L_il["SortOrder"] = Enum.SortOrder.LayoutOrder;
+	G2L_il["Padding"]   = UDim.new(0, 4);
+	local G2L_ip = Instance.new("UIPadding", G2L_inner);
+	G2L_ip["PaddingLeft"]   = UDim.new(0, 8);
+	G2L_ip["PaddingRight"]  = UDim.new(0, 8);
+	G2L_ip["PaddingTop"]    = UDim.new(0, 6);
+	G2L_ip["PaddingBottom"] = UDim.new(0, 6);
+	return G2L_inner;
+end;
+
+-- ── slideClipper: tween clipper height open or shut ───────────────────────────
+local function slideClipper(clipper, inner, open)
+	task.defer(function()
+		local targetH = open and inner.AbsoluteSize.Y or 0;
+		G2L["svc_tween"]:Create(clipper, G2L["TWEEN_SLIDE"], {
+			["Size"] = UDim2.new(1, 0, 0, targetH);
+		}):Play();
+	end);
+end;
+
+-- ── makeHeader: section header row with expand icon ───────────────────────────
+local function makeHeader(parent, label, order)
+	local G2L_hdr = Instance.new("Frame", parent);
+	G2L_hdr["Name"]             = [[Header_]] .. label;
+	G2L_hdr["Size"]             = UDim2.new(1, 0, 0, 32);
+	G2L_hdr["BackgroundColor3"] = Color3.fromRGB(14, 14, 19);
+	G2L_hdr["BorderSizePixel"]  = 0;
+	G2L_hdr["LayoutOrder"]      = order;
+	G2L_hdr["Active"]           = true;
+	local G2L_hc = Instance.new("UICorner", G2L_hdr);
+	G2L_hc["CornerRadius"] = UDim.new(0, 6);
+	addHoverFx(G2L_hdr);
+
+	local G2L_hicon = Instance.new("ImageButton", G2L_hdr);
+	G2L_hicon["Size"]                = UDim2.new(0, 18, 0, 18);
+	G2L_hicon["Position"]            = UDim2.new(0, 6, 0.5, -9);
+	G2L_hicon["BackgroundTransparency"] = 1;
+	G2L_hicon["BorderSizePixel"]     = 0;
+	G2L_hicon["Image"]               = [[rbxassetid://112384738137814]];
+	G2L_hicon["ImageColor3"]         = Color3.fromRGB(160, 160, 180);
+
+	local G2L_hlbl = Instance.new("TextLabel", G2L_hdr);
+	G2L_hlbl["Size"]                  = UDim2.new(1, -30, 1, 0);
+	G2L_hlbl["Position"]              = UDim2.new(0, 30, 0, 0);
+	G2L_hlbl["BackgroundTransparency"] = 1;
+	G2L_hlbl["BorderSizePixel"]       = 0;
+	G2L_hlbl["FontFace"]              = G2L["FONT_JOSEFIN"];
+	G2L_hlbl["TextSize"]              = 13;
+	G2L_hlbl["TextColor3"]            = Color3.fromRGB(200, 200, 215);
+	G2L_hlbl["TextXAlignment"]        = Enum.TextXAlignment.Left;
+	G2L_hlbl["Text"]                  = label;
+
+	return G2L_hdr, G2L_hicon;
+end;
+
+-- ── makToggleRow: a simple toggle row inside any panel ────────────────────────
+local function makeToggleRow(parent, label, fontSize, default, callback)
+	local state = (default == true);
+
+	local G2L_row = Instance.new("Frame", parent);
+	G2L_row["Name"]             = [[Toggle_]] .. label;
+	G2L_row["Size"]             = UDim2.new(1, 0, 0, fontSize == 12 and 28 or 32);
+	G2L_row["BackgroundColor3"] = fontSize == 12
+		and Color3.fromRGB(18, 18, 24)
+		or  Color3.fromRGB(14, 14, 19);
+	G2L_row["BorderSizePixel"]  = 0;
+	G2L_row["LayoutOrder"]      = #parent:GetChildren();
+	G2L_row["Active"]           = true;
+	local G2L_rc = Instance.new("UICorner", G2L_row);
+	G2L_rc["CornerRadius"] = UDim.new(0, fontSize == 12 and 5 or 6);
+	addHoverFx(G2L_row);
+
+	local G2L_lbl = Instance.new("TextLabel", G2L_row);
+	G2L_lbl["Size"]                  = UDim2.new(1, -50, 1, 0);
+	G2L_lbl["Position"]              = UDim2.new(0, fontSize == 12 and 8 or 10, 0, 0);
+	G2L_lbl["BackgroundTransparency"] = 1;
+	G2L_lbl["BorderSizePixel"]       = 0;
+	G2L_lbl["FontFace"]              = G2L["FONT_JOSEFIN"];
+	G2L_lbl["TextSize"]              = fontSize;
+	G2L_lbl["TextColor3"]            = fontSize == 12
+		and Color3.fromRGB(180, 180, 200)
+		or  Color3.fromRGB(200, 200, 215);
+	G2L_lbl["TextXAlignment"]        = Enum.TextXAlignment.Left;
+	G2L_lbl["Text"]                  = label;
+
+	local G2L_track, _, setPill = makePill(G2L_row, state);
+	G2L_track["Position"] = UDim2.new(1, fontSize == 12 and -40 or -44, 0.5, -9);
+
+	local function set(newState)
+		state = newState;
+		setPill(state);
+		if callback then callback(state) end;
+	end;
+
+	G2L_row.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			set(not state);
+		end;
+	end);
+
+	if callback then callback(state) end;
+	return set;
+end;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- Library
+-- ─────────────────────────────────────────────────────────────────────────────
+local Library = {};
+Library.__index = Library;
+
 function Library:Create(hubName)
-	local Window    = {}
-	local tabs      = {}        -- list of tab frames in order
-	local tabCount  = 0
+	local Window     = {};
+	local tabs       = {};
+	local homePos    = {};
+	local tabCount   = 0;
+	local isVisible  = true;
+	local isTweening = false;
 
-	-- ── Root ScreenGui (destroy old one if re-executed) ─────────────────────
-	local playerGui = LocalPlayer:WaitForChild("PlayerGui")
-	local existing  = playerGui:FindFirstChild("UILibrary")
+	-- Destroy old instance if script is re-executed
+	local playerGui = G2L["localplayer"]:WaitForChild("PlayerGui");
+	local existing  = playerGui:FindFirstChild("UILibrary");
 	if existing then
-		existing:Destroy()
-		-- Also unbind old toggle action so it doesnt double-fire
-		pcall(function() ContextActionService:UnbindAction("ToggleUI") end)
-		task.wait(0.05)  -- small gap so destroy fully processes
-	end
+		existing:Destroy();
+		pcall(function() G2L["svc_cas"]:UnbindAction("ToggleUI") end);
+		task.wait(0.05);
+	end;
 
-	local screenGui = Instance.new("ScreenGui")
-	screenGui.Name            = "UILibrary"
-	screenGui.ZIndexBehavior  = Enum.ZIndexBehavior.Sibling
-	screenGui.ResetOnSpawn    = false
-	screenGui.Parent          = playerGui
+	-- StarterGui.UILibrary
+	G2L["sg"] = Instance.new("ScreenGui", playerGui);
+	G2L["sg"]["Name"]           = [[UILibrary]];
+	G2L["sg"]["ZIndexBehavior"] = Enum.ZIndexBehavior.Sibling;
+	G2L["sg"]["ResetOnSpawn"]   = false;
 
-	-- ── Invisible layout container (full screen) ─────────────────────────────
-	local layoutFrame = Instance.new("Frame", screenGui)
-	layoutFrame.Name                = "The Layout"
-	layoutFrame.Size                = UDim2.new(1, 0, 1, 0)
-	layoutFrame.BackgroundTransparency = 1
-	layoutFrame.BorderSizePixel     = 0
+	-- StarterGui.UILibrary.The Layout
+	G2L["layout"] = Instance.new("Frame", G2L["sg"]);
+	G2L["layout"]["Name"]               = [[The Layout]];
+	G2L["layout"]["Size"]               = UDim2.new(1, 0, 1, 0);
+	G2L["layout"]["BackgroundTransparency"] = 1;
+	G2L["layout"]["BorderSizePixel"]    = 0;
 
-	-- ── Watermark ────────────────────────────────────────────────────────────
-	-- Uses AutomaticSize + UIListLayout so hiding a badge auto-reflows the rest
-	local wmHolder = Instance.new("Frame", screenGui)
-	wmHolder.Name               = "Watermark Layour"
-	wmHolder.Size               = UDim2.new(0, 137, 0, 0)      -- width=widest badge; height auto
-	wmHolder.AutomaticSize      = Enum.AutomaticSize.Y
-	wmHolder.AnchorPoint        = Vector2.new(1, 0)
-	wmHolder.Position           = UDim2.new(1, -10, 0, 10)
-	wmHolder.BackgroundTransparency = 1
-	wmHolder.BorderSizePixel    = 0
-	wmHolder.ClipsDescendants   = false
+	-- StarterGui.UILibrary.Watermark Layour
+	G2L["wm"] = Instance.new("Frame", G2L["sg"]);
+	G2L["wm"]["Name"]               = [[Watermark Layour]];
+	G2L["wm"]["Size"]               = UDim2.new(0, 137, 0, 0);
+	G2L["wm"]["AutomaticSize"]      = Enum.AutomaticSize.Y;
+	G2L["wm"]["AnchorPoint"]        = Vector2.new(1, 0);
+	G2L["wm"]["Position"]           = UDim2.new(1, -10, 0, 10);
+	G2L["wm"]["BackgroundTransparency"] = 1;
+	G2L["wm"]["BorderSizePixel"]    = 0;
+	G2L["wm"]["ClipsDescendants"]   = false;
 
-	-- UIListLayout stacks badges top-to-bottom with a 4px gap
-	local wmList = Instance.new("UIListLayout", wmHolder)
-	wmList.SortOrder      = Enum.SortOrder.LayoutOrder
-	wmList.HorizontalAlignment = Enum.HorizontalAlignment.Right
-	wmList.Padding        = UDim.new(0, 4)
+	local G2L_wmList = Instance.new("UIListLayout", G2L["wm"]);
+	G2L_wmList["SortOrder"]           = Enum.SortOrder.LayoutOrder;
+	G2L_wmList["HorizontalAlignment"] = Enum.HorizontalAlignment.Right;
+	G2L_wmList["Padding"]             = UDim.new(0, 4);
 
-	-- Helper: make a dark badge frame
-	local function makeBadge(w, h, order)
-		local f = Instance.new("Frame", wmHolder)
-		f.Size             = UDim2.new(0, w, 0, h)
-		f.BackgroundColor3 = Color3.fromRGB(24, 25, 30)
-		f.BorderSizePixel  = 0
-		f.LayoutOrder      = order
-		local c = Instance.new("UICorner", f); c.CornerRadius = UDim.new(0, 5)
-		local s = Instance.new("UIStroke",  f); s.Thickness = 1.5; s.Color = Color3.fromRGB(40, 42, 50)
-		return f
-	end
+	local function mkBadge(w, h, order)
+		local G2L_f = Instance.new("Frame", G2L["wm"]);
+		G2L_f["Size"]             = UDim2.new(0, w, 0, h);
+		G2L_f["BackgroundColor3"] = Color3.fromRGB(24, 25, 30);
+		G2L_f["BorderSizePixel"]  = 0;
+		G2L_f["LayoutOrder"]      = order;
+		local G2L_c = Instance.new("UICorner", G2L_f); G2L_c["CornerRadius"] = UDim.new(0, 5);
+		local G2L_s = Instance.new("UIStroke",  G2L_f); G2L_s["Thickness"] = 1.5; G2L_s["Color"] = Color3.fromRGB(40,42,50);
+		return G2L_f;
+	end;
 
-	-- Name badge (LayoutOrder=1, always visible, drag handle)
-	local wmName = makeBadge(137, 37, 1)
-	wmName.Name = "WaterMarkNameUi"
+	-- StarterGui.UILibrary.Watermark Layour.WaterMarkNameUi
+	G2L["wm_name"] = mkBadge(137, 37, 1);
+	G2L["wm_name"]["Name"] = [[WaterMarkNameUi]];
 
-	local wmNameLabel = Instance.new("TextLabel", wmName)
-	wmNameLabel.Name                = "WaterMarkTextLabel"
-	wmNameLabel.Size                = UDim2.new(1, 0, 1, 0)
-	wmNameLabel.BackgroundTransparency = 1
-	wmNameLabel.BorderSizePixel     = 0
-	wmNameLabel.FontFace            = Font.new([[rbxasset://fonts/families/JosefinSans.json]], Enum.FontWeight.Bold, Enum.FontStyle.Normal)
-	wmNameLabel.TextSize            = 14
-	wmNameLabel.TextColor3          = Color3.fromRGB(255, 255, 255)
-	wmNameLabel.Text                = hubName or "Hub"
-	local wmGrad = Instance.new("UIGradient", wmNameLabel)
-	wmGrad.Color = ColorSequence.new{
-		ColorSequenceKeypoint.new(0, Color3.fromRGB(216, 225, 255)),
-		ColorSequenceKeypoint.new(1, Color3.fromRGB(255, 255, 255))
-	}
+	G2L["wm_namelbl"] = Instance.new("TextLabel", G2L["wm_name"]);
+	G2L["wm_namelbl"]["Name"]               = [[WaterMarkTextLabel]];
+	G2L["wm_namelbl"]["Size"]               = UDim2.new(1, 0, 1, 0);
+	G2L["wm_namelbl"]["BackgroundTransparency"] = 1;
+	G2L["wm_namelbl"]["BorderSizePixel"]    = 0;
+	G2L["wm_namelbl"]["FontFace"]           = G2L["FONT_JOSEFIN_B"];
+	G2L["wm_namelbl"]["TextSize"]           = 14;
+	G2L["wm_namelbl"]["TextColor3"]         = Color3.fromRGB(255, 255, 255);
+	G2L["wm_namelbl"]["Text"]              = hubName or [[Hub]];
+	local G2L_wmg = Instance.new("UIGradient", G2L["wm_namelbl"]);
+	G2L_wmg["Color"] = ColorSequence.new{
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(216,225,255));
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(255,255,255));
+	};
 
-	-- FPS badge (LayoutOrder=2)
-	local fpsBadge = makeBadge(100, 37, 2)
-	fpsBadge.Name = "Fps WaterMark"
+	-- StarterGui.UILibrary.Watermark Layour.Fps WaterMark
+	G2L["wm_fps"] = mkBadge(100, 37, 2);
+	G2L["wm_fps"]["Name"] = [[Fps WaterMark]];
 
-	local fpsIcon = Instance.new("ImageLabel", fpsBadge)
-	fpsIcon.Size                = UDim2.new(0, 23, 0, 23)
-	fpsIcon.Position            = UDim2.new(0, 4, 0.5, -11)
-	fpsIcon.BackgroundTransparency = 1
-	fpsIcon.BorderSizePixel     = 0
-	fpsIcon.Image               = "rbxassetid://124560466474914"
-	fpsIcon.ImageColor3         = Color3.fromRGB(228, 228, 228)
+	G2L["wm_fpsicon"] = Instance.new("ImageLabel", G2L["wm_fps"]);
+	G2L["wm_fpsicon"]["Size"]               = UDim2.new(0, 23, 0, 23);
+	G2L["wm_fpsicon"]["Position"]           = UDim2.new(0, 4, 0.5, -11);
+	G2L["wm_fpsicon"]["BackgroundTransparency"] = 1;
+	G2L["wm_fpsicon"]["BorderSizePixel"]    = 0;
+	G2L["wm_fpsicon"]["Image"]              = [[rbxassetid://124560466474914]];
+	G2L["wm_fpsicon"]["ImageColor3"]        = Color3.fromRGB(228, 228, 228);
 
-	local fpsCounter = Instance.new("TextLabel", fpsBadge)
-	fpsCounter.Name                 = "FpsCounter"
-	fpsCounter.Size                 = UDim2.new(0, 30, 1, 0)
-	fpsCounter.Position             = UDim2.new(0, 32, 0, 0)
-	fpsCounter.BackgroundTransparency = 1
-	fpsCounter.BorderSizePixel      = 0
-	fpsCounter.FontFace             = Font.new([[rbxasset://fonts/families/JosefinSans.json]], Enum.FontWeight.Bold, Enum.FontStyle.Normal)
-	fpsCounter.TextSize             = 12
-	fpsCounter.TextColor3           = Color3.fromRGB(255, 255, 255)
-	fpsCounter.Text                 = "0"
+	G2L["wm_fpscnt"] = Instance.new("TextLabel", G2L["wm_fps"]);
+	G2L["wm_fpscnt"]["Name"]               = [[FpsCounter]];
+	G2L["wm_fpscnt"]["Size"]               = UDim2.new(0, 30, 1, 0);
+	G2L["wm_fpscnt"]["Position"]           = UDim2.new(0, 32, 0, 0);
+	G2L["wm_fpscnt"]["BackgroundTransparency"] = 1;
+	G2L["wm_fpscnt"]["BorderSizePixel"]    = 0;
+	G2L["wm_fpscnt"]["FontFace"]           = G2L["FONT_JOSEFIN_B"];
+	G2L["wm_fpscnt"]["TextSize"]           = 12;
+	G2L["wm_fpscnt"]["TextColor3"]         = Color3.fromRGB(255, 255, 255);
+	G2L["wm_fpscnt"]["Text"]              = [[0]];
 
-	local fpsLabel2 = Instance.new("TextLabel", fpsBadge)
-	fpsLabel2.Size                  = UDim2.new(0, 30, 1, 0)
-	fpsLabel2.Position              = UDim2.new(0, 63, 0, 0)
-	fpsLabel2.BackgroundTransparency = 1
-	fpsLabel2.BorderSizePixel       = 0
-	fpsLabel2.FontFace              = Font.new([[rbxasset://fonts/families/JosefinSans.json]], Enum.FontWeight.Bold, Enum.FontStyle.Normal)
-	fpsLabel2.TextSize              = 14
-	fpsLabel2.TextColor3            = Color3.fromRGB(255, 255, 255)
-	fpsLabel2.Text                  = "fps"
+	G2L["wm_fpslbl"] = Instance.new("TextLabel", G2L["wm_fps"]);
+	G2L["wm_fpslbl"]["Size"]               = UDim2.new(0, 30, 1, 0);
+	G2L["wm_fpslbl"]["Position"]           = UDim2.new(0, 63, 0, 0);
+	G2L["wm_fpslbl"]["BackgroundTransparency"] = 1;
+	G2L["wm_fpslbl"]["BorderSizePixel"]    = 0;
+	G2L["wm_fpslbl"]["FontFace"]           = G2L["FONT_JOSEFIN_B"];
+	G2L["wm_fpslbl"]["TextSize"]           = 14;
+	G2L["wm_fpslbl"]["TextColor3"]         = Color3.fromRGB(255, 255, 255);
+	G2L["wm_fpslbl"]["Text"]              = [[fps]];
 
-	-- Ping badge (LayoutOrder=3)
-	local pingBadge = makeBadge(106, 37, 3)
-	pingBadge.Name = "Ping WaterMark"
+	-- StarterGui.UILibrary.Watermark Layour.Ping WaterMark
+	G2L["wm_ping"] = mkBadge(106, 37, 3);
+	G2L["wm_ping"]["Name"] = [[Ping WaterMark]];
 
-	local pingIcon = Instance.new("ImageLabel", pingBadge)
-	pingIcon.Size                = UDim2.new(0, 30, 0, 28)
-	pingIcon.Position            = UDim2.new(0, 4, 0.5, -14)
-	pingIcon.BackgroundTransparency = 1
-	pingIcon.BorderSizePixel     = 0
-	pingIcon.Image               = "rbxassetid://81954601342139"
-	pingIcon.ImageColor3         = Color3.fromRGB(228, 228, 228)
+	G2L["wm_pingicon"] = Instance.new("ImageLabel", G2L["wm_ping"]);
+	G2L["wm_pingicon"]["Size"]              = UDim2.new(0, 30, 0, 28);
+	G2L["wm_pingicon"]["Position"]          = UDim2.new(0, 4, 0.5, -14);
+	G2L["wm_pingicon"]["BackgroundTransparency"] = 1;
+	G2L["wm_pingicon"]["BorderSizePixel"]   = 0;
+	G2L["wm_pingicon"]["Image"]             = [[rbxassetid://81954601342139]];
+	G2L["wm_pingicon"]["ImageColor3"]       = Color3.fromRGB(228, 228, 228);
 
-	local pingCounter = Instance.new("TextLabel", pingBadge)
-	pingCounter.Name                 = "PingCounter"
-	pingCounter.Size                 = UDim2.new(0, 35, 1, 0)
-	pingCounter.Position             = UDim2.new(0, 36, 0, 0)
-	pingCounter.BackgroundTransparency = 1
-	pingCounter.BorderSizePixel      = 0
-	pingCounter.FontFace             = Font.new([[rbxasset://fonts/families/JosefinSans.json]], Enum.FontWeight.Bold, Enum.FontStyle.Normal)
-	pingCounter.TextSize             = 12
-	pingCounter.TextColor3           = Color3.fromRGB(237, 237, 237)
-	pingCounter.Text                 = "0ms"
-	pingCounter.TextWrapped          = true
+	G2L["wm_pingcnt"] = Instance.new("TextLabel", G2L["wm_ping"]);
+	G2L["wm_pingcnt"]["Name"]              = [[PingCounter]];
+	G2L["wm_pingcnt"]["Size"]              = UDim2.new(0, 35, 1, 0);
+	G2L["wm_pingcnt"]["Position"]          = UDim2.new(0, 36, 0, 0);
+	G2L["wm_pingcnt"]["BackgroundTransparency"] = 1;
+	G2L["wm_pingcnt"]["BorderSizePixel"]   = 0;
+	G2L["wm_pingcnt"]["FontFace"]          = G2L["FONT_JOSEFIN_B"];
+	G2L["wm_pingcnt"]["TextSize"]          = 12;
+	G2L["wm_pingcnt"]["TextColor3"]        = Color3.fromRGB(237, 237, 237);
+	G2L["wm_pingcnt"]["Text"]             = [[0ms]];
+	G2L["wm_pingcnt"]["TextWrapped"]       = true;
 
-	local pingLabel2 = Instance.new("TextLabel", pingBadge)
-	pingLabel2.Size                  = UDim2.new(0, 35, 1, 0)
-	pingLabel2.Position              = UDim2.new(0, 68, 0, 0)
-	pingLabel2.BackgroundTransparency = 1
-	pingLabel2.BorderSizePixel       = 0
-	pingLabel2.FontFace              = Font.new([[rbxasset://fonts/families/JosefinSans.json]], Enum.FontWeight.Bold, Enum.FontStyle.Normal)
-	pingLabel2.TextSize              = 14
-	pingLabel2.TextColor3            = Color3.fromRGB(236, 236, 236)
-	pingLabel2.Text                  = "ping"
+	G2L["wm_pinglbl"] = Instance.new("TextLabel", G2L["wm_ping"]);
+	G2L["wm_pinglbl"]["Size"]              = UDim2.new(0, 35, 1, 0);
+	G2L["wm_pinglbl"]["Position"]          = UDim2.new(0, 68, 0, 0);
+	G2L["wm_pinglbl"]["BackgroundTransparency"] = 1;
+	G2L["wm_pinglbl"]["BorderSizePixel"]   = 0;
+	G2L["wm_pinglbl"]["FontFace"]          = G2L["FONT_JOSEFIN_B"];
+	G2L["wm_pinglbl"]["TextSize"]          = 14;
+	G2L["wm_pinglbl"]["TextColor3"]        = Color3.fromRGB(236, 236, 236);
+	G2L["wm_pinglbl"]["Text"]             = [[ping]];
 
-	-- Watermark draggable (drag handle = name badge)
-	makeDraggable(wmHolder, wmName)
-	addHoverFx(wmName)
+	makeDraggable(G2L["wm"], G2L["wm_name"]);
+	addHoverFx(G2L["wm_name"]);
 
-	-- ── FPS counter ──────────────────────────────────────────────────────────
-	local fpsHistory = {}
-	RunService.Heartbeat:Connect(function(dt)
-		table.insert(fpsHistory, dt)
-		if #fpsHistory > 30 then table.remove(fpsHistory, 1) end
+	-- FPS counter
+	local fpsHistory = {};
+	G2L["svc_run"].Heartbeat:Connect(function(dt)
+		table.insert(fpsHistory, dt);
+		if #fpsHistory > 30 then table.remove(fpsHistory, 1) end;
 		if #fpsHistory == 30 then
-			local sum = 0
-			for _, v in ipairs(fpsHistory) do sum += v end
-			fpsCounter.Text = tostring(math.round(1 / (sum / 30)))
-		end
-	end)
+			local sum = 0;
+			for _, v in ipairs(fpsHistory) do sum += v end;
+			G2L["wm_fpscnt"]["Text"] = tostring(math.round(1 / (sum / 30)));
+		end;
+	end);
 
-	-- ── Ping counter ─────────────────────────────────────────────────────────
-	RunService.Heartbeat:Connect(function()
-		pingCounter.Text = tostring(math.round(LocalPlayer:GetNetworkPing() * 1000)) .. "ms"
-	end)
+	-- Ping counter
+	G2L["svc_run"].Heartbeat:Connect(function()
+		G2L["wm_pingcnt"]["Text"] = tostring(math.round(G2L["localplayer"]:GetNetworkPing() * 1000)) .. [[ms]];
+	end);
 
-	-- ── Toggle (Insert key) ───────────────────────────────────────────────────
-	-- homePos stores each tab's "visible" position so toggle always
-	-- returns to the right place even after dragging.
-	local homePos   = {}   -- [tabFrame] = UDim2  (updated after drag)
-	local isVisible  = true
-	local isTweening = false
-
-	local tweenOut = TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
-	local tweenIn  = TweenInfo.new(0.4, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-
-	local OFFSCREEN_X = -1900  -- px to slide off to the left
-
+	-- Insert key toggle
 	local function hiddenPos(tab)
-		local h = homePos[tab] or tab.Position
-		return UDim2.new(0, h.X.Offset + OFFSCREEN_X, 0, h.Y.Offset)
-	end
+		local h = homePos[tab] or tab.Position;
+		return UDim2.new(0, h.X.Offset + G2L["OFFSCREEN_X"], 0, h.Y.Offset);
+	end;
 
 	local function slideAll(info, targetFn, onDone)
-		isTweening = true
-		local done = 0
-		if #tabs == 0 then isTweening = false if onDone then onDone() end return end
+		isTweening = true;
+		local done = 0;
+		if #tabs == 0 then isTweening = false; if onDone then onDone() end; return end;
 		for _, tab in ipairs(tabs) do
-			local t = TweenService:Create(tab, info, {Position = targetFn(tab)})
-			t:Play()
+			local t = G2L["svc_tween"]:Create(tab, info, {["Position"] = targetFn(tab)});
+			t:Play();
 			t.Completed:Connect(function()
-				done += 1
+				done += 1;
 				if done >= #tabs then
-					isTweening = false
-					if onDone then onDone() end
-				end
-			end)
-		end
-	end
+					isTweening = false;
+					if onDone then onDone() end;
+				end;
+			end);
+		end;
+	end;
 
-	ContextActionService:BindAction("ToggleUI", function(_, inputState, _)
-		if inputState ~= Enum.UserInputState.Begin then return end
-		if isTweening then return end
-
+	G2L["svc_cas"]:BindAction("ToggleUI", function(_, inputState, _)
+		if inputState ~= Enum.UserInputState.Begin then return end;
+		if isTweening then return end;
 		if isVisible then
-			-- Save current positions as home before sliding out
-			for _, tab in ipairs(tabs) do
-				homePos[tab] = tab.Position
-			end
-			isVisible = false
-			slideAll(tweenOut, hiddenPos, function()
-				layoutFrame.Visible = false
-			end)
+			for _, tab in ipairs(tabs) do homePos[tab] = tab.Position end;
+			isVisible = false;
+			slideAll(G2L["TWEEN_OUT"], hiddenPos, function()
+				G2L["layout"]["Visible"] = false;
+			end);
 		else
-			-- Snap to off-screen, then tween back to home
-			for _, tab in ipairs(tabs) do
-				tab.Position = hiddenPos(tab)
-			end
-			layoutFrame.Visible = true
-			isVisible = true
-			slideAll(tweenIn, function(tab)
-				return homePos[tab] or tab.Position
-			end)
-		end
-	end, false, Enum.KeyCode.Insert)
-
-	-- ── Tab layout: original exact positions & sizes ────────────────────────
-	-- Matches the original UI script 1:1
-	-- Tab6 (Setting) sits beside Misc at same Y, not underneath it
-	local TAB_WIDTH = 259
-
-	local TAB_CONFIGS = {
-		-- { x,    y,   height }
-		{  22,   26,  728 },   -- 1 Combat
-		{ 294,   26,  498 },   -- 2 Movement
-		{ 563,   26,  418 },   -- 3 Player
-		{ 831,   26,  318 },   -- 4 Render
-		{ 1097,  26,  254 },   -- 5 Misc
-		{ 1366,  26,  153 },   -- 6 Setting (beside Misc, not below)
-	}
-
-	local TAB_ICONS = {
-		"rbxassetid://81872698913435",
-		"rbxassetid://112426178972099",
-		"rbxassetid://125020872044147",
-		"rbxassetid://100033680381365",
-		"rbxassetid://120517954878160",
-		"rbxassetid://116544501716299",
-	}
+			for _, tab in ipairs(tabs) do tab["Position"] = hiddenPos(tab) end;
+			G2L["layout"]["Visible"] = true;
+			isVisible = true;
+			slideAll(G2L["TWEEN_IN"], function(tab) return homePos[tab] or tab.Position end);
+		end;
+	end, false, Enum.KeyCode.Insert);
 
 	-- ── Window:Tab(name, visible) ─────────────────────────────────────────────
 	function Window:Tab(name, visible)
-		tabCount += 1
-		local idx = tabCount
+		tabCount += 1;
+		local idx = tabCount;
+		local cfg  = G2L["TAB_CONFIGS"][idx] or G2L["TAB_CONFIGS"][#G2L["TAB_CONFIGS"]];
+		local posX, posY, tabH = cfg[1], cfg[2], cfg[3];
+		local tabKey     = "tab_"  .. idx;
+		local titleKey   = "title_".. idx;
+		local contentKey = "cont_" .. idx;
 
-		local cfg        = TAB_CONFIGS[idx] or TAB_CONFIGS[#TAB_CONFIGS]
-		local TAB_HEIGHT = cfg[3]
-		local posX       = cfg[1]
-		local posY       = cfg[2]
+		-- StarterGui.UILibrary.The Layout.Tab_X
+		G2L[tabKey] = Instance.new("Frame", G2L["layout"]);
+		G2L[tabKey]["Name"]             = [[Tab_]] .. name;
+		G2L[tabKey]["Size"]             = UDim2.new(0, G2L["TAB_WIDTH"], 0, tabH);
+		G2L[tabKey]["Position"]         = UDim2.new(0, posX, 0, posY);
+		G2L[tabKey]["BackgroundColor3"] = Color3.fromRGB(9, 9, 12);
+		G2L[tabKey]["BorderSizePixel"]  = 0;
+		G2L[tabKey]["Visible"]          = (visible ~= false);
+		local G2L_tc = Instance.new("UICorner", G2L[tabKey]);
+		G2L_tc["CornerRadius"] = UDim.new(0, 8);
+		local G2L_ts = Instance.new("UIStroke",  G2L[tabKey]);
+		G2L_ts["Thickness"] = 1.5;
+		G2L_ts["Color"]     = Color3.fromRGB(24, 25, 30);
 
-		-- ── Tab frame ────────────────────────────────────────────────────────
-		local tabFrame = Instance.new("Frame", layoutFrame)
-		tabFrame.Name             = "Tab_" .. name
-		tabFrame.Size             = UDim2.new(0, TAB_WIDTH, 0, TAB_HEIGHT)
-		tabFrame.Position         = UDim2.new(0, posX, 0, posY)
-		tabFrame.BackgroundColor3 = Color3.fromRGB(9, 9, 12)
-		tabFrame.BorderSizePixel  = 0
-		tabFrame.Visible          = (visible ~= false)
+		-- StarterGui.UILibrary.The Layout.Tab_X.DropShadowHolder
+		local G2L_dsh = Instance.new("Frame", G2L[tabKey]);
+		G2L_dsh["Name"]             = [[DropShadowHolder]];
+		G2L_dsh["ZIndex"]           = 0;
+		G2L_dsh["BorderSizePixel"]  = 0;
+		G2L_dsh["Size"]             = UDim2.new(1, 0, 1, 0);
+		G2L_dsh["BackgroundTransparency"] = 1;
 
-		local tabCorner = Instance.new("UICorner", tabFrame)
-		tabCorner.CornerRadius = UDim.new(0, 8)
+		-- StarterGui.UILibrary.The Layout.Tab_X.DropShadowHolder.DropShadow
+		local G2L_ds = Instance.new("ImageLabel", G2L_dsh);
+		G2L_ds["Name"]              = [[DropShadow]];
+		G2L_ds["ZIndex"]            = 0;
+		G2L_ds["BorderSizePixel"]   = 0;
+		G2L_ds["SliceCenter"]       = Rect.new(49, 49, 450, 450);
+		G2L_ds["ScaleType"]         = Enum.ScaleType.Slice;
+		G2L_ds["ImageTransparency"] = 0.5;
+		G2L_ds["ImageColor3"]       = Color3.fromRGB(9, 9, 12);
+		G2L_ds["AnchorPoint"]       = Vector2.new(0.5, 0.5);
+		G2L_ds["Image"]             = [[rbxassetid://6014261993]];
+		G2L_ds["Size"]              = UDim2.new(1, 47, 1, 47);
+		G2L_ds["BackgroundTransparency"] = 1;
+		G2L_ds["Position"]          = UDim2.new(0.5, 0, 0.5, 0);
 
-		local tabStroke = Instance.new("UIStroke", tabFrame)
-		tabStroke.Thickness = 1.5
-		tabStroke.Color     = Color3.fromRGB(24, 25, 30)
+		-- StarterGui.UILibrary.The Layout.Tab_X.UiLayourNameIcon
+		G2L[titleKey] = Instance.new("Frame", G2L[tabKey]);
+		G2L[titleKey]["Name"]             = [[UiLayourNameIcon]];
+		G2L[titleKey]["Size"]             = UDim2.new(0, G2L["TAB_WIDTH"], 0, 34);
+		G2L[titleKey]["Position"]         = UDim2.new(0, 0, 0, 0);
+		G2L[titleKey]["BackgroundColor3"] = Color3.fromRGB(14, 14, 19);
+		G2L[titleKey]["BorderSizePixel"]  = 0;
+		local G2L_tic = Instance.new("UICorner", G2L[titleKey]);
+		G2L_tic["CornerRadius"] = UDim.new(0, 8);
 
-		-- Drop shadow
-		local shadowHolder = Instance.new("Frame", tabFrame)
-		shadowHolder.Name               = "DropShadowHolder"
-		shadowHolder.Size               = UDim2.new(1, 0, 1, 0)
-		shadowHolder.BackgroundTransparency = 1
-		shadowHolder.BorderSizePixel    = 0
-		shadowHolder.ZIndex             = 0
+		-- StarterGui.UILibrary.The Layout.Tab_X.UiLayourNameIcon.ImageLabelIconNOTOUCH
+		local G2L_icon = Instance.new("ImageLabel", G2L[titleKey]);
+		G2L_icon["Name"]             = [[ImageLabelIconNOTOUCH]];
+		G2L_icon["Size"]             = UDim2.new(0, 19, 0, 19);
+		G2L_icon["Position"]         = UDim2.new(0, 10, 0.5, -9);
+		G2L_icon["BackgroundTransparency"] = 1;
+		G2L_icon["BorderSizePixel"]  = 0;
+		G2L_icon["Image"]            = G2L["TAB_ICONS"][((idx-1) % #G2L["TAB_ICONS"])+1];
+		G2L_icon["ImageColor3"]      = Color3.fromRGB(182, 182, 198);
 
-		local shadow = Instance.new("ImageLabel", shadowHolder)
-		shadow.Name               = "DropShadow"
-		shadow.Size               = UDim2.new(1, 47, 1, 47)
-		shadow.AnchorPoint        = Vector2.new(0.5, 0.5)
-		shadow.Position           = UDim2.new(0.5, 0, 0.5, 0)
-		shadow.BackgroundTransparency = 1
-		shadow.BorderSizePixel    = 0
-		shadow.Image              = "rbxassetid://6014261993"
-		shadow.ImageColor3        = Color3.fromRGB(9, 9, 12)
-		shadow.ImageTransparency  = 0.5
-		shadow.ScaleType          = Enum.ScaleType.Slice
-		shadow.SliceCenter        = Rect.new(49, 49, 450, 450)
-		shadow.ZIndex             = 0
+		-- StarterGui.UILibrary.The Layout.Tab_X.UiLayourNameIcon.TheNameTabTextLabel
+		local G2L_namelbl = Instance.new("TextLabel", G2L[titleKey]);
+		G2L_namelbl["Name"]                = [[TheNameTabTextLabel]];
+		G2L_namelbl["Size"]                = UDim2.new(1, -40, 1, 0);
+		G2L_namelbl["Position"]            = UDim2.new(0, 36, 0, 0);
+		G2L_namelbl["BackgroundTransparency"] = 1;
+		G2L_namelbl["BorderSizePixel"]     = 0;
+		G2L_namelbl["FontFace"]            = G2L["FONT_JOSEFIN"];
+		G2L_namelbl["TextSize"]            = 16;
+		G2L_namelbl["TextColor3"]          = Color3.fromRGB(255, 255, 255);
+		G2L_namelbl["TextXAlignment"]      = Enum.TextXAlignment.Left;
+		G2L_namelbl["Text"]               = name;
 
-		-- ── Title bar (drag handle) ───────────────────────────────────────────
-		local titleBar = Instance.new("Frame", tabFrame)
-		titleBar.Name             = "UiLayourNameIcon"
-		titleBar.Size             = UDim2.new(0, TAB_WIDTH, 0, 34)
-		titleBar.Position         = UDim2.new(0, 0, 0, 0)
-		titleBar.BackgroundColor3 = Color3.fromRGB(14, 14, 19)
-		titleBar.BorderSizePixel  = 0
+		-- StarterGui.UILibrary.The Layout.Tab_X.UiLayourNameIcon.TheNameTabTextLabel.UIGradient
+		local G2L_ng = Instance.new("UIGradient", G2L_namelbl);
+		G2L_ng["Color"] = ColorSequence.new{
+			ColorSequenceKeypoint.new(0,     Color3.fromRGB(204,218,255));
+			ColorSequenceKeypoint.new(0.502, Color3.fromRGB(255,220,220));
+			ColorSequenceKeypoint.new(1,     Color3.fromRGB(229,236,255));
+		};
 
-		local titleCorner = Instance.new("UICorner", titleBar)
-		titleCorner.CornerRadius = UDim.new(0, 8)
+		-- StarterGui.UILibrary.The Layout.Tab_X.IgnoreLine
+		local G2L_sep = Instance.new("Frame", G2L[tabKey]);
+		G2L_sep["Name"]             = [[IgnoreLine]];
+		G2L_sep["Size"]             = UDim2.new(0, 246, 0, 3);
+		G2L_sep["Position"]         = UDim2.new(0, 6, 0, 31);
+		G2L_sep["BackgroundColor3"] = Color3.fromRGB(82, 82, 111);
+		G2L_sep["BorderSizePixel"]  = 0;
+		local G2L_sepc = Instance.new("UICorner", G2L_sep);
+		G2L_sepc["CornerRadius"] = UDim.new(0, 5);
 
-		-- Icon
-		local icon = Instance.new("ImageLabel", titleBar)
-		icon.Size                = UDim2.new(0, 19, 0, 19)
-		icon.Position            = UDim2.new(0, 10, 0.5, -9)
-		icon.BackgroundTransparency = 1
-		icon.BorderSizePixel     = 0
-		icon.Image               = TAB_ICONS[((idx - 1) % #TAB_ICONS) + 1]
-		icon.ImageColor3         = Color3.fromRGB(182, 182, 198)
+		-- StarterGui.UILibrary.The Layout.Tab_X.IgnoreLine.DropShadowHolder
+		local G2L_sdsh = Instance.new("Frame", G2L_sep);
+		G2L_sdsh["ZIndex"]           = 0;
+		G2L_sdsh["BorderSizePixel"]  = 0;
+		G2L_sdsh["Name"]             = [[DropShadowHolder]];
+		G2L_sdsh["Size"]             = UDim2.new(1, 0, 1, 0);
+		G2L_sdsh["BackgroundTransparency"] = 1;
 
-		-- Name label
-		local nameLabel = Instance.new("TextLabel", titleBar)
-		nameLabel.Size                  = UDim2.new(1, -40, 1, 0)
-		nameLabel.Position              = UDim2.new(0, 36, 0, 0)
-		nameLabel.BackgroundTransparency = 1
-		nameLabel.BorderSizePixel       = 0
-		nameLabel.FontFace              = Font.new([[rbxasset://fonts/families/JosefinSans.json]], Enum.FontWeight.Regular, Enum.FontStyle.Normal)
-		nameLabel.TextSize              = 16
-		nameLabel.TextColor3            = Color3.fromRGB(255, 255, 255)
-		nameLabel.TextXAlignment        = Enum.TextXAlignment.Left
-		nameLabel.Text                  = name
-
-		local nameGrad = Instance.new("UIGradient", nameLabel)
-		nameGrad.Color = ColorSequence.new{
-			ColorSequenceKeypoint.new(0,     Color3.fromRGB(204, 218, 255)),
-			ColorSequenceKeypoint.new(0.502, Color3.fromRGB(255, 220, 220)),
-			ColorSequenceKeypoint.new(1,     Color3.fromRGB(229, 236, 255)),
-		}
-
-		-- Separator line under title bar (2px up from old position)
-		local sep = Instance.new("Frame", tabFrame)
-		sep.Name             = "IgnoreLine"
-		sep.Size             = UDim2.new(0, 246, 0, 3)
-		sep.Position         = UDim2.new(0, 6, 0, 31)
-		sep.BackgroundColor3 = Color3.fromRGB(82, 82, 111)
-		sep.BorderSizePixel  = 0
-		local sepCorner = Instance.new("UICorner", sep)
-		sepCorner.CornerRadius = UDim.new(0, 5)
-
-		-- Glow pulse on separator
-		local glow = Instance.new("ImageLabel", sep)
-		glow.Name               = "GlowEffect"
-		glow.Size               = UDim2.new(1.3, 0, 1.3, 0)
-		glow.Position           = UDim2.new(-0.15, 0, -0.15, 0)
-		glow.BackgroundTransparency = 1
-		glow.BorderSizePixel    = 0
-		glow.Image              = "rbxassetid://15379289405"
-		glow.ImageColor3        = Color3.fromRGB(81, 81, 110)
-		glow.ImageTransparency  = 0.35
-		glow.ZIndex             = 0
+		-- StarterGui.UILibrary.The Layout.Tab_X.IgnoreLine.GlowEffect
+		local G2L_glow = Instance.new("ImageLabel", G2L_sep);
+		G2L_glow["Name"]             = [[GlowEffect]];
+		G2L_glow["ZIndex"]           = 0;
+		G2L_glow["BorderSizePixel"]  = 0;
+		G2L_glow["Size"]             = UDim2.new(1.3, 0, 1.3, 0);
+		G2L_glow["Position"]         = UDim2.new(-0.15, 0, -0.15, 0);
+		G2L_glow["BackgroundTransparency"] = 1;
+		G2L_glow["Image"]            = [[rbxassetid://15379289405]];
+		G2L_glow["ImageColor3"]      = Color3.fromRGB(81, 81, 110);
+		G2L_glow["ImageTransparency"] = 0.35;
 		task.spawn(function()
-			while glow.Parent do
-				glow.ImageTransparency = 0.25 + math.sin(tick() * 3) * 0.1
-				task.wait(0.03)
-			end
-		end)
+			while G2L_glow.Parent do
+				G2L_glow["ImageTransparency"] = 0.25 + math.sin(tick() * 3) * 0.1;
+				task.wait(0.03);
+			end;
+		end);
 
-		-- Content scrolling frame
-		local content = Instance.new("ScrollingFrame", tabFrame)
-		content.Name                   = "ScrollingFrameFeatureInHere"
-		content.Size                   = UDim2.new(0, TAB_WIDTH, 1, -44)
-		content.Position               = UDim2.new(0, 0, 0, 44)
-		content.BackgroundTransparency = 1
-		content.BorderSizePixel        = 0
-		content.ScrollBarThickness     = 3
-		content.ScrollBarImageColor3   = Color3.fromRGB(82, 82, 111)
-		content.ScrollBarImageTransparency = 0.6
-		content.CanvasSize             = UDim2.new(0, 0, 0, 0)
-		content.AutomaticCanvasSize    = Enum.AutomaticSize.Y
+		-- StarterGui.UILibrary.The Layout.Tab_X.ScrollingFrameFeatureInHere
+		G2L[contentKey] = Instance.new("ScrollingFrame", G2L[tabKey]);
+		G2L[contentKey]["Name"]                   = [[ScrollingFrameFeatureInHere]];
+		G2L[contentKey]["Size"]                   = UDim2.new(0, G2L["TAB_WIDTH"], 1, -44);
+		G2L[contentKey]["Position"]               = UDim2.new(0, 0, 0, 44);
+		G2L[contentKey]["BackgroundTransparency"] = 1;
+		G2L[contentKey]["BorderSizePixel"]        = 0;
+		G2L[contentKey]["ScrollBarThickness"]     = 3;
+		G2L[contentKey]["ScrollBarImageColor3"]   = Color3.fromRGB(82, 82, 111);
+		G2L[contentKey]["ScrollBarImageTransparency"] = 0.6;
+		G2L[contentKey]["CanvasSize"]             = UDim2.new(0, 0, 0, 0);
+		G2L[contentKey]["AutomaticCanvasSize"]    = Enum.AutomaticSize.Y;
+		local G2L_scc = Instance.new("UICorner", G2L[contentKey]);
+		G2L_scc["CornerRadius"] = UDim.new(0, 4);
+		local G2L_scl = Instance.new("UIListLayout", G2L[contentKey]);
+		G2L_scl["SortOrder"] = Enum.SortOrder.LayoutOrder;
+		G2L_scl["Padding"]   = UDim.new(0, 6);
+		local G2L_scp = Instance.new("UIPadding", G2L[contentKey]);
+		G2L_scp["PaddingLeft"]   = UDim.new(0, 8);
+		G2L_scp["PaddingRight"]  = UDim.new(0, 8);
+		G2L_scp["PaddingTop"]    = UDim.new(0, 6);
+		G2L_scp["PaddingBottom"] = UDim.new(0, 6);
 
-		local contentCorner = Instance.new("UICorner", content)
-		contentCorner.CornerRadius = UDim.new(0, 4)
-
-		local contentLayout = Instance.new("UIListLayout", content)
-		contentLayout.SortOrder    = Enum.SortOrder.LayoutOrder
-		contentLayout.Padding      = UDim.new(0, 6)
-
-		local contentPadding = Instance.new("UIPadding", content)
-		contentPadding.PaddingLeft   = UDim.new(0, 8)
-		contentPadding.PaddingRight  = UDim.new(0, 8)
-		contentPadding.PaddingTop    = UDim.new(0, 6)
-		contentPadding.PaddingBottom = UDim.new(0, 6)
-
-		-- Register tab for toggle sliding
-		table.insert(tabs, tabFrame)
-
-		-- Make tab draggable (smooth) using title bar as handle
-		-- Also update homePos when drag ends so toggle returns to new spot
-		makeDraggable(tabFrame, titleBar)
-		titleBar.InputEnded:Connect(function(input)
+		table.insert(tabs, G2L[tabKey]);
+		makeDraggable(G2L[tabKey], G2L[titleKey]);
+		G2L[titleKey].InputEnded:Connect(function(input)
 			if input.UserInputType ~= Enum.UserInputType.MouseButton1
-				and input.UserInputType ~= Enum.UserInputType.Touch then return end
-			homePos[tabFrame] = tabFrame.Position
-		end)
+				and input.UserInputType ~= Enum.UserInputType.Touch then return end;
+			homePos[G2L[tabKey]] = G2L[tabKey].Position;
+		end);
 
-		-- Auto-resize tab height based on content
-		contentLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-			local newH = math.max(80, contentLayout.AbsoluteContentSize.Y + 44 + 16)
-			tabFrame.Size = UDim2.new(0, TAB_WIDTH, 0, newH)
-		end)
+		G2L_scl:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+			local newH = math.max(80, G2L_scl.AbsoluteContentSize.Y + 44 + 16);
+			G2L[tabKey]["Size"] = UDim2.new(0, G2L["TAB_WIDTH"], 0, newH);
+		end);
 
-		-- ── Tab API ──────────────────────────────────────────────────────────
-		local Tab = {}
-		Tab._content = content   -- internal ref for BuildSettingToggles
+		local content = G2L[contentKey];
+		local Tab     = {};
+		Tab._content  = content;
 
-		-- Show / hide the tab
 		function Tab:SetVisible(v)
-			tabFrame.Visible = v
-		end
+			G2L[tabKey]["Visible"] = v;
+		end;
 
-		-- ── AddToggle(label, default, callback) ─────────────────────────────────
-		-- Row layout:
-		--   [expand icon] [label]         [pill toggle]
-		-- Left-click pill or row  → toggle on/off
-		-- Right-click row OR click expand icon → show/hide a sub-content area
-		--   (sub-content is empty by default; BuildSettingToggles fills it for
-		--    the Setting tab, but any tab can use it for nested options)
-		function Tab:AddToggle(label, default, callback)
-			local state      = (default == true)
-			local expanded   = false   -- sub-panel shown?
+		-- Tab:Toggle(label, default, callback)
+		function Tab:Toggle(label, default, callback)
+			return makeToggleRow(content, label, 13, default, callback);
+		end;
 
-			-- Outer wrapper so sub-panel can sit below the row
-			local wrapper = Instance.new("Frame", content)
-			wrapper.Name             = "ToggleWrapper_" .. label
-			wrapper.Size             = UDim2.new(1, 0, 0, 32)
-			wrapper.BackgroundTransparency = 1
-			wrapper.BorderSizePixel  = 0
-			wrapper.LayoutOrder      = #content:GetChildren()
-			wrapper.AutomaticSize    = Enum.AutomaticSize.Y
-			local wrapList = Instance.new("UIListLayout", wrapper)
-			wrapList.SortOrder = Enum.SortOrder.LayoutOrder
-			wrapList.Padding   = UDim.new(0, 3)
-
-			-- Main toggle row
-			local row = Instance.new("Frame", wrapper)
-			row.Name             = "Row"
-			row.Size             = UDim2.new(1, 0, 0, 32)
-			row.BackgroundColor3 = Color3.fromRGB(14, 14, 19)
-			row.BorderSizePixel  = 0
-			row.LayoutOrder      = 1
-			row.Active           = true
-			local rowCorner = Instance.new("UICorner", row)
-			rowCorner.CornerRadius = UDim.new(0, 6)
-			addHoverFx(row)
-
-			-- Expand / collapse icon button (left side)
-			-- Shows arrow-right (collapsed) or arrow-down (expanded)
-			local expandBtn = Instance.new("ImageButton", row)
-			expandBtn.Size                = UDim2.new(0, 18, 0, 18)
-			expandBtn.Position            = UDim2.new(0, 6, 0.5, -9)
-			expandBtn.BackgroundTransparency = 1
-			expandBtn.BorderSizePixel     = 0
-			expandBtn.Image               = "rbxassetid://112384738137814"  -- expand/show icon
-			expandBtn.ImageColor3         = Color3.fromRGB(160, 160, 180)
-
-			-- Label
-			local rowLabel = Instance.new("TextLabel", row)
-			rowLabel.Size                  = UDim2.new(1, -70, 1, 0)
-			rowLabel.Position              = UDim2.new(0, 30, 0, 0)
-			rowLabel.BackgroundTransparency = 1
-			rowLabel.BorderSizePixel       = 0
-			rowLabel.FontFace              = Font.new([[rbxasset://fonts/families/JosefinSans.json]], Enum.FontWeight.Regular, Enum.FontStyle.Normal)
-			rowLabel.TextSize              = 13
-			rowLabel.TextColor3            = Color3.fromRGB(200, 200, 215)
-			rowLabel.TextXAlignment        = Enum.TextXAlignment.Left
-			rowLabel.Text                  = label
-
-			-- Toggle pill track
-			local track = Instance.new("Frame", row)
-			track.Size             = UDim2.new(0, 34, 0, 18)
-			track.Position         = UDim2.new(1, -44, 0.5, -9)
-			track.BackgroundColor3 = state and Color3.fromRGB(81, 81, 110) or Color3.fromRGB(40, 40, 55)
-			track.BorderSizePixel  = 0
-			local trackCorner = Instance.new("UICorner", track)
-			trackCorner.CornerRadius = UDim.new(1, 0)
-
-			-- Knob
-			local knob = Instance.new("Frame", track)
-			knob.Size             = UDim2.new(0, 12, 0, 12)
-			knob.Position         = state and UDim2.new(1, -15, 0.5, -6) or UDim2.new(0, 3, 0.5, -6)
-			knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-			knob.BorderSizePixel  = 0
-			local knobCorner = Instance.new("UICorner", knob)
-			knobCorner.CornerRadius = UDim.new(1, 0)
-
-			-- Clip container: height tweens for smooth open/close
-			local clipper = Instance.new("Frame", wrapper)
-			clipper.Name              = "SubPanelClipper"
-			clipper.Size              = UDim2.new(1, 0, 0, 0)
-			clipper.BackgroundTransparency = 1
-			clipper.BorderSizePixel   = 0
-			clipper.ClipsDescendants  = true
-			clipper.LayoutOrder       = 2
-
-			-- Actual sub-panel inside clipper (AutomaticSize so we can read real height)
-			local subPanel = Instance.new("Frame", clipper)
-			subPanel.Name             = "SubPanel"
-			subPanel.Size             = UDim2.new(1, 0, 0, 0)
-			subPanel.AutomaticSize    = Enum.AutomaticSize.Y
-			subPanel.BackgroundColor3 = Color3.fromRGB(11, 11, 15)
-			subPanel.BorderSizePixel  = 0
-			local subCorner = Instance.new("UICorner", subPanel)
-			subCorner.CornerRadius = UDim.new(0, 6)
-			local subList = Instance.new("UIListLayout", subPanel)
-			subList.SortOrder = Enum.SortOrder.LayoutOrder
-			subList.Padding   = UDim.new(0, 4)
-			local subPad = Instance.new("UIPadding", subPanel)
-			subPad.PaddingLeft   = UDim.new(0, 8)
-			subPad.PaddingRight  = UDim.new(0, 8)
-			subPad.PaddingTop    = UDim.new(0, 6)
-			subPad.PaddingBottom = UDim.new(0, 6)
-
-			local tweenToggle  = TweenInfo.new(0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-			local tweenSlide   = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-
-			-- Toggle on/off
-			local function setToggle(newState, fireCallback)
-				state = newState
-				TweenService:Create(track, tweenToggle, {
-					BackgroundColor3 = state and Color3.fromRGB(81, 81, 110) or Color3.fromRGB(40, 40, 55)
-				}):Play()
-				TweenService:Create(knob, tweenToggle, {
-					Position = state and UDim2.new(1, -15, 0.5, -6) or UDim2.new(0, 3, 0.5, -6)
-				}):Play()
-				if fireCallback and callback then callback(state) end
-			end
-
-			-- Smooth expand / collapse by tweening clipper height
-			local function setExpanded(newExpanded)
-				expanded = newExpanded
-				expandBtn.Image = expanded
-					and "rbxassetid://121304296213645"  -- minimize/hide icon
-					or  "rbxassetid://112384738137814"  -- expand/show icon
-				local targetH = expanded and subPanel.AbsoluteSize.Y or 0
-				TweenService:Create(clipper, tweenSlide, {
-					Size = UDim2.new(1, 0, 0, targetH)
-				}):Play()
-			end
-
-			-- Left-click on the row body (not the expand btn) → toggle pill
-			row.Active = true
-			row.InputBegan:Connect(function(input)
-				if input.UserInputType == Enum.UserInputType.MouseButton1 then
-					setToggle(not state, true)
-				elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
-					-- Right-click → toggle sub-panel
-					setExpanded(not expanded)
-				end
-			end)
-
-			-- Expand icon click → toggle sub-panel
-			expandBtn.MouseButton1Click:Connect(function()
-				setExpanded(not expanded)
-			end)
-
-			-- Fire default callback
-			if callback then callback(state) end
-
-			-- Return both setters and the subPanel so BuildSettingToggles can add rows
-			return setToggle, subPanel
-		end
-
-		-- ── Tab:Section(label) ────────────────────────────────────────────────
-		-- Creates a collapsible section row inside this tab.
-		-- Click the row or the icon to expand/collapse smoothly.
-		-- Returns a Section object with :Toggle(label, default, callback)
+		-- Tab:Section(label)
 		function Tab:Section(label)
-			local sectionWrapper = Instance.new("Frame", content)
-			sectionWrapper.Name              = "Section_" .. label
-			sectionWrapper.Size              = UDim2.new(1, 0, 0, 32)
-			sectionWrapper.AutomaticSize     = Enum.AutomaticSize.Y
-			sectionWrapper.BackgroundTransparency = 1
-			sectionWrapper.BorderSizePixel   = 0
-			sectionWrapper.LayoutOrder       = #content:GetChildren()
-			local secList = Instance.new("UIListLayout", sectionWrapper)
-			secList.SortOrder = Enum.SortOrder.LayoutOrder
-			secList.Padding   = UDim.new(0, 3)
+			local G2L_wrap = Instance.new("Frame", content);
+			G2L_wrap["Name"]             = [[Section_]] .. label;
+			G2L_wrap["Size"]             = UDim2.new(1, 0, 0, 32);
+			G2L_wrap["AutomaticSize"]    = Enum.AutomaticSize.Y;
+			G2L_wrap["BackgroundTransparency"] = 1;
+			G2L_wrap["BorderSizePixel"]  = 0;
+			G2L_wrap["LayoutOrder"]      = #content:GetChildren();
+			local G2L_wl = Instance.new("UIListLayout", G2L_wrap);
+			G2L_wl["SortOrder"] = Enum.SortOrder.LayoutOrder;
+			G2L_wl["Padding"]   = UDim.new(0, 3);
 
-			-- Header row
-			local header = Instance.new("Frame", sectionWrapper)
-			header.Name             = "SectionHeader"
-			header.Size             = UDim2.new(1, 0, 0, 32)
-			header.BackgroundColor3 = Color3.fromRGB(14, 14, 19)
-			header.BorderSizePixel  = 0
-			header.LayoutOrder      = 1
-			header.Active           = true
-			local hCorner = Instance.new("UICorner", header)
-			hCorner.CornerRadius = UDim.new(0, 6)
-			addHoverFx(header)
-
-			-- Expand icon
-			local hIcon = Instance.new("ImageButton", header)
-			hIcon.Size                = UDim2.new(0, 18, 0, 18)
-			hIcon.Position            = UDim2.new(0, 6, 0.5, -9)
-			hIcon.BackgroundTransparency = 1
-			hIcon.BorderSizePixel     = 0
-			hIcon.Image               = "rbxassetid://112384738137814"
-			hIcon.ImageColor3         = Color3.fromRGB(160, 160, 180)
-
-			-- Label
-			local hLabel = Instance.new("TextLabel", header)
-			hLabel.Size                  = UDim2.new(1, -30, 1, 0)
-			hLabel.Position              = UDim2.new(0, 30, 0, 0)
-			hLabel.BackgroundTransparency = 1
-			hLabel.BorderSizePixel       = 0
-			hLabel.FontFace              = Font.new([[rbxasset://fonts/families/JosefinSans.json]], Enum.FontWeight.Regular, Enum.FontStyle.Normal)
-			hLabel.TextSize              = 13
-			hLabel.TextColor3            = Color3.fromRGB(200, 200, 215)
-			hLabel.TextXAlignment        = Enum.TextXAlignment.Left
-			hLabel.Text                  = label
-
-			-- Clipper for smooth slide
-			local clipper = Instance.new("Frame", sectionWrapper)
-			clipper.Name              = "SectionClipper"
-			clipper.Size              = UDim2.new(1, 0, 0, 0)
-			clipper.BackgroundTransparency = 1
-			clipper.BorderSizePixel   = 0
-			clipper.ClipsDescendants  = true
-			clipper.LayoutOrder       = 2
-
-			-- Inner panel
-			local inner = Instance.new("Frame", clipper)
-			inner.Name             = "SectionInner"
-			inner.Size             = UDim2.new(1, 0, 0, 0)
-			inner.AutomaticSize    = Enum.AutomaticSize.Y
-			inner.BackgroundColor3 = Color3.fromRGB(11, 11, 15)
-			inner.BorderSizePixel  = 0
-			local innerCorner = Instance.new("UICorner", inner)
-			innerCorner.CornerRadius = UDim.new(0, 6)
-			local innerList = Instance.new("UIListLayout", inner)
-			innerList.SortOrder = Enum.SortOrder.LayoutOrder
-			innerList.Padding   = UDim.new(0, 4)
-			local innerPad = Instance.new("UIPadding", inner)
-			innerPad.PaddingLeft   = UDim.new(0, 8)
-			innerPad.PaddingRight  = UDim.new(0, 8)
-			innerPad.PaddingTop    = UDim.new(0, 6)
-			innerPad.PaddingBottom = UDim.new(0, 6)
-
-			local expanded   = false
-			local tweenSlide = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
+			local G2L_hdr, G2L_hicon = makeHeader(G2L_wrap, label, 1);
+			local G2L_clip  = makeClipper(G2L_wrap, 2);
+			local G2L_inner = makeInner(G2L_clip);
+			local expanded  = false;
 
 			local function setExpanded(v)
-				expanded    = v
-				hIcon.Image = expanded
-					and "rbxassetid://121304296213645"
-					or  "rbxassetid://112384738137814"
-				-- Must wait a frame so AutomaticSize has updated AbsoluteSize
-				task.defer(function()
-					local targetH = expanded and inner.AbsoluteSize.Y or 0
-					TweenService:Create(clipper, tweenSlide, {
-						Size = UDim2.new(1, 0, 0, targetH)
-					}):Play()
-				end)
-			end
+				expanded = v;
+				G2L_hicon["Image"] = expanded
+					and [[rbxassetid://121304296213645]]
+					or  [[rbxassetid://112384738137814]];
+				slideClipper(G2L_clip, G2L_inner, expanded);
+			end;
 
-			header.Active = true
-			header.InputBegan:Connect(function(input)
+			G2L_hdr.InputBegan:Connect(function(input)
 				if input.UserInputType == Enum.UserInputType.MouseButton1
 					or input.UserInputType == Enum.UserInputType.MouseButton2 then
-					setExpanded(not expanded)
-				end
-			end)
-			hIcon.MouseButton1Click:Connect(function()
-				setExpanded(not expanded)
-			end)
+					setExpanded(not expanded);
+				end;
+			end);
+			G2L_hicon.MouseButton1Click:Connect(function() setExpanded(not expanded) end);
 
-			-- ── Section:Toggle(label, default, callback) ──────────────────────
-			local Section = {}
-
+			local Section = {};
 			function Section:Toggle(lbl, default, cb)
-				local state = (default == true)
+				return makeToggleRow(G2L_inner, lbl, 12, default, cb);
+			end;
 
-				local row = Instance.new("Frame", inner)
-				row.Name             = "SToggle_" .. lbl
-				row.Size             = UDim2.new(1, 0, 0, 28)
-				row.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
-				row.BorderSizePixel  = 0
-				row.LayoutOrder      = #inner:GetChildren()
-				row.Active           = true
-				local rc = Instance.new("UICorner", row); rc.CornerRadius = UDim.new(0, 5)
-				addHoverFx(row)
+			return Section;
+		end;
 
-				local rowLbl = Instance.new("TextLabel", row)
-				rowLbl.Size                  = UDim2.new(1, -50, 1, 0)
-				rowLbl.Position              = UDim2.new(0, 8, 0, 0)
-				rowLbl.BackgroundTransparency = 1
-				rowLbl.BorderSizePixel       = 0
-				rowLbl.FontFace              = Font.new([[rbxasset://fonts/families/JosefinSans.json]], Enum.FontWeight.Regular, Enum.FontStyle.Normal)
-				rowLbl.TextSize              = 12
-				rowLbl.TextColor3            = Color3.fromRGB(180, 180, 200)
-				rowLbl.TextXAlignment        = Enum.TextXAlignment.Left
-				rowLbl.Text                  = lbl
+		return Tab;
+	end;
 
-				local track = Instance.new("Frame", row)
-				track.Size             = UDim2.new(0, 34, 0, 18)
-				track.Position         = UDim2.new(1, -40, 0.5, -9)
-				track.BackgroundColor3 = state and Color3.fromRGB(81, 81, 110) or Color3.fromRGB(40, 40, 55)
-				track.BorderSizePixel  = 0
-				local tc = Instance.new("UICorner", track); tc.CornerRadius = UDim.new(1, 0)
-
-				local knob = Instance.new("Frame", track)
-				knob.Size             = UDim2.new(0, 12, 0, 12)
-				knob.Position         = state and UDim2.new(1, -15, 0.5, -6) or UDim2.new(0, 3, 0.5, -6)
-				knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-				knob.BorderSizePixel  = 0
-				local kc = Instance.new("UICorner", knob); kc.CornerRadius = UDim.new(1, 0)
-
-				local tweenT = TweenInfo.new(0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-
-				local function set(newState)
-					state = newState
-					TweenService:Create(track, tweenT, {
-						BackgroundColor3 = state and Color3.fromRGB(81, 81, 110) or Color3.fromRGB(40, 40, 55)
-					}):Play()
-					TweenService:Create(knob, tweenT, {
-						Position = state and UDim2.new(1, -15, 0.5, -6) or UDim2.new(0, 3, 0.5, -6)
-					}):Play()
-					if cb then cb(state) end
-				end
-
-				row.Active = true
-				row.InputBegan:Connect(function(input)
-					if input.UserInputType == Enum.UserInputType.MouseButton1 then
-						set(not state)
-					end
-				end)
-
-				if cb then cb(state) end
-				return set
-			end
-
-			return Section
-		end
-
-		-- ── Tab:Toggle(label, default, callback) ──────────────────────────────
-		-- Adds a standalone toggle row directly into the tab (no section needed).
-		function Tab:Toggle(label, default, callback)
-			local state = (default == true)
-
-			local row = Instance.new("Frame", content)
-			row.Name             = "Toggle_" .. label
-			row.Size             = UDim2.new(1, 0, 0, 32)
-			row.BackgroundColor3 = Color3.fromRGB(14, 14, 19)
-			row.BorderSizePixel  = 0
-			row.LayoutOrder      = #content:GetChildren()
-			row.Active           = true
-			local rowCorner = Instance.new("UICorner", row)
-			rowCorner.CornerRadius = UDim.new(0, 6)
-			addHoverFx(row)
-
-			local rowLabel = Instance.new("TextLabel", row)
-			rowLabel.Size                  = UDim2.new(1, -50, 1, 0)
-			rowLabel.Position              = UDim2.new(0, 10, 0, 0)
-			rowLabel.BackgroundTransparency = 1
-			rowLabel.BorderSizePixel       = 0
-			rowLabel.FontFace              = Font.new([[rbxasset://fonts/families/JosefinSans.json]], Enum.FontWeight.Regular, Enum.FontStyle.Normal)
-			rowLabel.TextSize              = 13
-			rowLabel.TextColor3            = Color3.fromRGB(200, 200, 215)
-			rowLabel.TextXAlignment        = Enum.TextXAlignment.Left
-			rowLabel.Text                  = label
-
-			local track = Instance.new("Frame", row)
-			track.Size             = UDim2.new(0, 34, 0, 18)
-			track.Position         = UDim2.new(1, -44, 0.5, -9)
-			track.BackgroundColor3 = state and Color3.fromRGB(81, 81, 110) or Color3.fromRGB(40, 40, 55)
-			track.BorderSizePixel  = 0
-			local trackCorner = Instance.new("UICorner", track)
-			trackCorner.CornerRadius = UDim.new(1, 0)
-
-			local knob = Instance.new("Frame", track)
-			knob.Size             = UDim2.new(0, 12, 0, 12)
-			knob.Position         = state and UDim2.new(1, -15, 0.5, -6) or UDim2.new(0, 3, 0.5, -6)
-			knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-			knob.BorderSizePixel  = 0
-			local knobCorner = Instance.new("UICorner", knob)
-			knobCorner.CornerRadius = UDim.new(1, 0)
-
-			local tweenT = TweenInfo.new(0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-
-			local function set(newState)
-				state = newState
-				TweenService:Create(track, tweenT, {
-					BackgroundColor3 = state and Color3.fromRGB(81, 81, 110) or Color3.fromRGB(40, 40, 55)
-				}):Play()
-				TweenService:Create(knob, tweenT, {
-					Position = state and UDim2.new(1, -15, 0.5, -6) or UDim2.new(0, 3, 0.5, -6)
-				}):Play()
-				if callback then callback(state) end
-			end
-
-			row.Active = true
-			row.InputBegan:Connect(function(input)
-				if input.UserInputType == Enum.UserInputType.MouseButton1 then
-					set(not state)
-				end
-			end)
-
-			if callback then callback(state) end
-			return set
-		end
-
-		return Tab
-	end
-
-	-- ── Built-in Setting tab ────────────────────────────────────────────────
+	-- ── Window:BuildSettingToggles(settingTab) ────────────────────────────────
 	function Window:BuildSettingToggles(settingTab)
-		-- "Watermark" section button: click to expand/collapse sub-toggles.
-		-- No pill toggle on this row itself — it's purely a section header.
+		local content2 = settingTab._content;
 
-		local content2 = settingTab._content  -- internal ref set below
+		-- StarterGui.UILibrary.Setting.WatermarkSection
+		local G2L_wrap = Instance.new("Frame", content2);
+		G2L_wrap["Name"]             = [[WatermarkSection]];
+		G2L_wrap["Size"]             = UDim2.new(1, 0, 0, 32);
+		G2L_wrap["AutomaticSize"]    = Enum.AutomaticSize.Y;
+		G2L_wrap["BackgroundTransparency"] = 1;
+		G2L_wrap["BorderSizePixel"]  = 0;
+		G2L_wrap["LayoutOrder"]      = 1;
+		local G2L_wl = Instance.new("UIListLayout", G2L_wrap);
+		G2L_wl["SortOrder"] = Enum.SortOrder.LayoutOrder;
+		G2L_wl["Padding"]   = UDim.new(0, 3);
 
-		-- Section button row
-		local sectionWrapper = Instance.new("Frame", content2)
-		sectionWrapper.Name              = "WatermarkSection"
-		sectionWrapper.Size              = UDim2.new(1, 0, 0, 32)
-		sectionWrapper.AutomaticSize     = Enum.AutomaticSize.Y
-		sectionWrapper.BackgroundTransparency = 1
-		sectionWrapper.BorderSizePixel   = 0
-		sectionWrapper.LayoutOrder       = 1
-		local secList = Instance.new("UIListLayout", sectionWrapper)
-		secList.SortOrder = Enum.SortOrder.LayoutOrder
-		secList.Padding   = UDim.new(0, 3)
+		local G2L_hdr, G2L_hicon = makeHeader(G2L_wrap, "Watermark", 1);
 
-		-- Header row (the "Watermark" button)
-		local header = Instance.new("Frame", sectionWrapper)
-		header.Name             = "WatermarkHeader"
-		header.Size             = UDim2.new(1, 0, 0, 32)
-		header.BackgroundColor3 = Color3.fromRGB(14, 14, 19)
-		header.BorderSizePixel  = 0
-		header.LayoutOrder      = 1
-		header.Active           = true
-		local hCorner = Instance.new("UICorner", header)
-		hCorner.CornerRadius = UDim.new(0, 6)
-		addHoverFx(header)
+		-- StarterGui.UILibrary.Setting.WatermarkSection.WatermarkSubPanel
+		local G2L_subp = Instance.new("Frame", G2L_wrap);
+		G2L_subp["Name"]             = [[WatermarkSubPanel]];
+		G2L_subp["Size"]             = UDim2.new(1, 0, 0, 0);
+		G2L_subp["AutomaticSize"]    = Enum.AutomaticSize.Y;
+		G2L_subp["BackgroundColor3"] = Color3.fromRGB(11, 11, 15);
+		G2L_subp["BorderSizePixel"]  = 0;
+		G2L_subp["LayoutOrder"]      = 2;
+		local G2L_spc = Instance.new("UICorner", G2L_subp);
+		G2L_spc["CornerRadius"] = UDim.new(0, 6);
+		local G2L_spl = Instance.new("UIListLayout", G2L_subp);
+		G2L_spl["SortOrder"] = Enum.SortOrder.LayoutOrder;
+		G2L_spl["Padding"]   = UDim.new(0, 4);
+		local G2L_spp = Instance.new("UIPadding", G2L_subp);
+		G2L_spp["PaddingLeft"]   = UDim.new(0, 8);
+		G2L_spp["PaddingRight"]  = UDim.new(0, 8);
+		G2L_spp["PaddingTop"]    = UDim.new(0, 6);
+		G2L_spp["PaddingBottom"] = UDim.new(0, 6);
 
-		-- Expand icon on the left
-		local hIcon = Instance.new("ImageButton", header)
-		hIcon.Size                = UDim2.new(0, 18, 0, 18)
-		hIcon.Position            = UDim2.new(0, 6, 0.5, -9)
-		hIcon.BackgroundTransparency = 1
-		hIcon.BorderSizePixel     = 0
-		hIcon.Image               = "rbxassetid://112384738137814"
-		hIcon.ImageColor3         = Color3.fromRGB(160, 160, 180)
+		local G2L_clip = makeClipper(G2L_wrap, 2);
+		G2L_subp["Parent"] = G2L_clip;
 
-		-- "Watermark" label
-		local hLabel = Instance.new("TextLabel", header)
-		hLabel.Size                  = UDim2.new(1, -30, 1, 0)
-		hLabel.Position              = UDim2.new(0, 30, 0, 0)
-		hLabel.BackgroundTransparency = 1
-		hLabel.BorderSizePixel       = 0
-		hLabel.FontFace              = Font.new([[rbxasset://fonts/families/JosefinSans.json]], Enum.FontWeight.Regular, Enum.FontStyle.Normal)
-		hLabel.TextSize              = 13
-		hLabel.TextColor3            = Color3.fromRGB(200, 200, 215)
-		hLabel.TextXAlignment        = Enum.TextXAlignment.Left
-		hLabel.Text                  = "Watermark"
-
-		-- Sub-panel that holds the 3 toggles
-		local subPanel = Instance.new("Frame", sectionWrapper)
-		subPanel.Name             = "WatermarkSubPanel"
-		subPanel.Size             = UDim2.new(1, 0, 0, 0)
-		subPanel.AutomaticSize    = Enum.AutomaticSize.Y
-		subPanel.BackgroundColor3 = Color3.fromRGB(11, 11, 15)
-		subPanel.BorderSizePixel  = 0
-		subPanel.LayoutOrder      = 2
-		local spCorner = Instance.new("UICorner", subPanel)
-		spCorner.CornerRadius = UDim.new(0, 6)
-		local spList = Instance.new("UIListLayout", subPanel)
-		spList.SortOrder = Enum.SortOrder.LayoutOrder
-		spList.Padding   = UDim.new(0, 4)
-		local spPad = Instance.new("UIPadding", subPanel)
-		spPad.PaddingLeft   = UDim.new(0, 8)
-		spPad.PaddingRight  = UDim.new(0, 8)
-		spPad.PaddingTop    = UDim.new(0, 6)
-		spPad.PaddingBottom = UDim.new(0, 6)
-
-		local expanded    = false
-		local tweenT      = TweenInfo.new(0.18, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-		local tweenSlide2 = TweenInfo.new(0.25, Enum.EasingStyle.Quint, Enum.EasingDirection.Out)
-
-		-- Wrap subPanel in a clipper for smooth slide
-		local clipper2 = Instance.new("Frame", sectionWrapper)
-		clipper2.Name              = "WatermarkClipper"
-		clipper2.Size              = UDim2.new(1, 0, 0, 0)
-		clipper2.BackgroundTransparency = 1
-		clipper2.BorderSizePixel   = 0
-		clipper2.ClipsDescendants  = true
-		clipper2.LayoutOrder       = 2
-		subPanel.Parent            = clipper2   -- reparent into clipper
+		local expanded = false;
 
 		local function setExpanded(v)
-			expanded    = v
-			hIcon.Image = expanded
-				and "rbxassetid://121304296213645"  -- minimize
-				or  "rbxassetid://112384738137814"  -- expand
-			local targetH = expanded and subPanel.AbsoluteSize.Y or 0
-			TweenService:Create(clipper2, tweenSlide2, {
-				Size = UDim2.new(1, 0, 0, targetH)
-			}):Play()
-		end
+			expanded = v;
+			G2L_hicon["Image"] = expanded
+				and [[rbxassetid://121304296213645]]
+				or  [[rbxassetid://112384738137814]];
+			task.defer(function()
+				local targetH = expanded and G2L_subp.AbsoluteSize.Y or 0;
+				G2L["svc_tween"]:Create(G2L_clip, G2L["TWEEN_SLIDE"], {
+					["Size"] = UDim2.new(1, 0, 0, targetH);
+				}):Play();
+			end);
+		end;
 
-		header.Active = true
-		header.InputBegan:Connect(function(input)
+		G2L_hdr.InputBegan:Connect(function(input)
 			if input.UserInputType == Enum.UserInputType.MouseButton1
 				or input.UserInputType == Enum.UserInputType.MouseButton2 then
-				setExpanded(not expanded)
-			end
-		end)
-		hIcon.MouseButton1Click:Connect(function()
-			setExpanded(not expanded)
-		end)
+				setExpanded(not expanded);
+			end;
+		end);
+		G2L_hicon.MouseButton1Click:Connect(function() setExpanded(not expanded) end);
 
-		-- Helper: add a plain toggle row inside the subPanel (no icon, no sub-panel)
-		local function addSubToggle(parent, label, default, callback)
-			local state = (default == true)
+		-- StarterGui.UILibrary.Setting.WatermarkSection.HubName
+		makeToggleRow(G2L_subp, "Hub Name",    12, true,  function(on) G2L["wm_name"]["Visible"] = on end);
+		-- StarterGui.UILibrary.Setting.WatermarkSection.FpsCounter
+		makeToggleRow(G2L_subp, "FPS Counter", 12, true,  function(on) G2L["wm_fps"]["Visible"]  = on end);
+		-- StarterGui.UILibrary.Setting.WatermarkSection.PingCounter
+		makeToggleRow(G2L_subp, "Ping Counter",12, true,  function(on) G2L["wm_ping"]["Visible"] = on end);
+	end;
 
-			local row = Instance.new("Frame", parent)
-			row.Name             = "SubToggle_" .. label
-			row.Size             = UDim2.new(1, 0, 0, 28)
-			row.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
-			row.BorderSizePixel  = 0
-			row.LayoutOrder      = #parent:GetChildren()
-			row.Active           = true
-			local rc = Instance.new("UICorner", row); rc.CornerRadius = UDim.new(0, 5)
-			addHoverFx(row)
+	return Window;
+end;
 
-			local lbl = Instance.new("TextLabel", row)
-			lbl.Size                  = UDim2.new(1, -50, 1, 0)
-			lbl.Position              = UDim2.new(0, 8, 0, 0)
-			lbl.BackgroundTransparency = 1
-			lbl.BorderSizePixel       = 0
-			lbl.FontFace              = Font.new([[rbxasset://fonts/families/JosefinSans.json]], Enum.FontWeight.Regular, Enum.FontStyle.Normal)
-			lbl.TextSize              = 12
-			lbl.TextColor3            = Color3.fromRGB(180, 180, 200)
-			lbl.TextXAlignment        = Enum.TextXAlignment.Left
-			lbl.Text                  = label
-
-			local track = Instance.new("Frame", row)
-			track.Size             = UDim2.new(0, 34, 0, 18)
-			track.Position         = UDim2.new(1, -40, 0.5, -9)
-			track.BackgroundColor3 = state and Color3.fromRGB(81, 81, 110) or Color3.fromRGB(40, 40, 55)
-			track.BorderSizePixel  = 0
-			local tc = Instance.new("UICorner", track); tc.CornerRadius = UDim.new(1, 0)
-
-			local knob = Instance.new("Frame", track)
-			knob.Size             = UDim2.new(0, 12, 0, 12)
-			knob.Position         = state and UDim2.new(1, -15, 0.5, -6) or UDim2.new(0, 3, 0.5, -6)
-			knob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-			knob.BorderSizePixel  = 0
-			local kc = Instance.new("UICorner", knob); kc.CornerRadius = UDim.new(1, 0)
-
-			local function set(newState)
-				state = newState
-				TweenService:Create(track, tweenT, {
-					BackgroundColor3 = state and Color3.fromRGB(81, 81, 110) or Color3.fromRGB(40, 40, 55)
-				}):Play()
-				TweenService:Create(knob, tweenT, {
-					Position = state and UDim2.new(1, -15, 0.5, -6) or UDim2.new(0, 3, 0.5, -6)
-				}):Play()
-				if callback then callback(state) end
-			end
-
-			row.Active = true
-			row.InputBegan:Connect(function(input)
-				if input.UserInputType == Enum.UserInputType.MouseButton1 then
-					set(not state)
-				end
-			end)
-
-			if callback then callback(state) end
-		end
-
-		-- The 3 sub-toggles inside the Watermark section
-		addSubToggle(subPanel, "Hub Name",    true, function(on) wmName.Visible    = on end)
-		addSubToggle(subPanel, "FPS Counter", true, function(on) fpsBadge.Visible  = on end)
-		addSubToggle(subPanel, "Ping Counter",true, function(on) pingBadge.Visible = on end)
-	end
-
-	return Window
-end
-
-return Library
+return Library;
