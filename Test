@@ -7,8 +7,8 @@
  Y888P  ~Y8888P' Y888888P      888888D      Y88888P ~Y8888P' YP   YP  UI LIBRARY
 ]=]
 
--- UI Library v2.0 | by bombaclat wallahi
--- Instances: dynamic | Scripts: inline | Modules: 0
+-- UI Library v2.0 | by diddy
+-- Instances: dynamic | Scripts: inline | Modules: 67
 
 local G2L = {};
 
@@ -1734,16 +1734,18 @@ function Library:Create(hubName)
 			end;
 		end);
 		G2L_xbtn.MouseButton1Click:Connect(function() togglePanel(false) end);
-		-- Click outside panel (on overlay) closes it
+
+		-- Close only when clicking OUTSIDE the panel bounds
 		G2L_overlay.InputBegan:Connect(function(i)
-			if i.UserInputType == Enum.UserInputType.MouseButton1 then
-				-- only close if click was on the overlay itself, not the panel
+			if i.UserInputType ~= Enum.UserInputType.MouseButton1 then return end;
+			local mp  = G2L["svc_input"]:GetMouseLocation();
+			local ap  = G2L_panel.AbsolutePosition;
+			local sz  = G2L_panel.AbsoluteSize;
+			local inside = mp.X >= ap.X and mp.X <= ap.X + sz.X
+				and mp.Y >= ap.Y and mp.Y <= ap.Y + sz.Y;
+			if not inside then
 				togglePanel(false);
 			end;
-		end);
-		G2L_panel.InputBegan:Connect(function(i)
-			-- stop click from bubbling to overlay
-			i:Handled();
 		end);
 	end;
 
