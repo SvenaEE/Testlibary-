@@ -7,7 +7,7 @@
  Y888P  ~Y8888P' Y888888P      888888D      Y88888P ~Y8888P' YP   YP  UI LIBRARY
 ]=]
 
--- UI Library v2.0 | by DIDDYIS SON WALLAHHII BOMBOCLAY WEALLAII
+-- UI Library v2.0 | by bombaclat wallahi
 -- Instances: dynamic | Scripts: inline | Modules: 0
 
 local G2L = {};
@@ -1087,6 +1087,59 @@ function Library:Create(hubName)
 			return makeToggleRow(content, label, 13, default, callback);
 		end;
 
+		-- Tab:Button(label, callback)
+		-- A clickable row. callback fires on click. No state, no pill.
+		function Tab:Button(label, callback)
+			local G2L_row = Instance.new("Frame", content);
+			G2L_row["Name"]             = [[Button_]] .. label;
+			G2L_row["Size"]             = UDim2.new(1, 0, 0, 32);
+			G2L_row["BackgroundColor3"] = Color3.fromRGB(14, 14, 19);
+			G2L_row["BorderSizePixel"]  = 0;
+			G2L_row["LayoutOrder"]      = #content:GetChildren();
+			G2L_row["Active"]           = true;
+			local G2L_rc = Instance.new("UICorner", G2L_row);
+			G2L_rc["CornerRadius"] = UDim.new(0, 6);
+			addHoverFx(G2L_row);
+
+			local G2L_lbl = Instance.new("TextLabel", G2L_row);
+			G2L_lbl["Size"]                  = UDim2.new(1, -30, 1, 0);
+			G2L_lbl["Position"]              = UDim2.new(0, 10, 0, 0);
+			G2L_lbl["BackgroundTransparency"] = 1;
+			G2L_lbl["BorderSizePixel"]       = 0;
+			G2L_lbl["FontFace"]              = G2L["FONT_JOSEFIN"];
+			G2L_lbl["TextSize"]              = 13;
+			G2L_lbl["TextColor3"]            = Color3.fromRGB(200, 200, 215);
+			G2L_lbl["TextXAlignment"]        = Enum.TextXAlignment.Left;
+			G2L_lbl["Text"]                  = label;
+
+			-- Small › arrow on the right
+			local G2L_arr = Instance.new("TextLabel", G2L_row);
+			G2L_arr["Size"]                  = UDim2.new(0, 20, 1, 0);
+			G2L_arr["Position"]              = UDim2.new(1, -22, 0, 0);
+			G2L_arr["BackgroundTransparency"] = 1;
+			G2L_arr["BorderSizePixel"]       = 0;
+			G2L_arr["FontFace"]              = G2L["FONT_JOSEFIN_B"];
+			G2L_arr["TextSize"]              = 16;
+			G2L_arr["TextColor3"]            = Color3.fromRGB(140, 140, 160);
+			G2L_arr["Text"]                  = [[›]];
+
+			-- Click feedback: brief flash
+			local tweenClick = TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out);
+			G2L_row.InputBegan:Connect(function(input)
+				if input.UserInputType == Enum.UserInputType.MouseButton1 then
+					G2L["svc_tween"]:Create(G2L_row, tweenClick, {
+						["BackgroundColor3"] = Color3.fromRGB(50, 50, 70);
+					}):Play();
+					task.delay(0.1, function()
+						G2L["svc_tween"]:Create(G2L_row, tweenClick, {
+							["BackgroundColor3"] = Color3.fromRGB(14, 14, 19);
+						}):Play();
+					end);
+					if callback then callback() end;
+				end;
+			end);
+		end;
+
 		-- Tab:ColorPicker(label, defaultColor, onChange)
 		function Tab:ColorPicker(label, defaultColor, onChange)
 			-- Label row
@@ -1212,17 +1265,76 @@ function Library:Create(hubName)
 				return makeToggleColorRow(G2L_inner, lbl, 12, defToggle, defColor, onToggle, onColor);
 			end;
 
+			-- Section:Button(label, callback)
+			function Section:Button(lbl, cb)
+				local G2L_row = Instance.new("Frame", G2L_inner);
+				G2L_row["Name"]             = [[Button_]] .. lbl;
+				G2L_row["Size"]             = UDim2.new(1, 0, 0, 28);
+				G2L_row["BackgroundColor3"] = Color3.fromRGB(18, 18, 24);
+				G2L_row["BorderSizePixel"]  = 0;
+				G2L_row["LayoutOrder"]      = #G2L_inner:GetChildren();
+				G2L_row["Active"]           = true;
+				local G2L_rc = Instance.new("UICorner", G2L_row);
+				G2L_rc["CornerRadius"] = UDim.new(0, 5);
+				addHoverFx(G2L_row);
+
+				local G2L_lbl = Instance.new("TextLabel", G2L_row);
+				G2L_lbl["Size"]                  = UDim2.new(1, -26, 1, 0);
+				G2L_lbl["Position"]              = UDim2.new(0, 8, 0, 0);
+				G2L_lbl["BackgroundTransparency"] = 1;
+				G2L_lbl["BorderSizePixel"]       = 0;
+				G2L_lbl["FontFace"]              = G2L["FONT_JOSEFIN"];
+				G2L_lbl["TextSize"]              = 12;
+				G2L_lbl["TextColor3"]            = Color3.fromRGB(180, 180, 200);
+				G2L_lbl["TextXAlignment"]        = Enum.TextXAlignment.Left;
+				G2L_lbl["Text"]                  = lbl;
+
+				local G2L_arr = Instance.new("TextLabel", G2L_row);
+				G2L_arr["Size"]                  = UDim2.new(0, 18, 1, 0);
+				G2L_arr["Position"]              = UDim2.new(1, -20, 0, 0);
+				G2L_arr["BackgroundTransparency"] = 1;
+				G2L_arr["BorderSizePixel"]       = 0;
+				G2L_arr["FontFace"]              = G2L["FONT_JOSEFIN_B"];
+				G2L_arr["TextSize"]              = 14;
+				G2L_arr["TextColor3"]            = Color3.fromRGB(140, 140, 160);
+				G2L_arr["Text"]                  = [[›]];
+
+				local tweenClick = TweenInfo.new(0.08, Enum.EasingStyle.Quad, Enum.EasingDirection.Out);
+				G2L_row.InputBegan:Connect(function(input)
+					if input.UserInputType == Enum.UserInputType.MouseButton1 then
+						G2L["svc_tween"]:Create(G2L_row, tweenClick, {
+							["BackgroundColor3"] = Color3.fromRGB(45, 45, 60);
+						}):Play();
+						task.delay(0.1, function()
+							G2L["svc_tween"]:Create(G2L_row, tweenClick, {
+								["BackgroundColor3"] = Color3.fromRGB(18, 18, 24);
+							}):Play();
+						end);
+						if cb then cb() end;
+					end;
+				end);
+			end;
+
 			return Section;
 		end;
 
 		return Tab;
 	end;
 
+	-- ── applyAccent: pushes accent color to all tab strokes + ignorelines ───────
+	local accentListeners = {};
+	local function applyAccent(col)
+		G2L["accent_color"] = col;
+		for _, fn in ipairs(accentListeners) do
+			pcall(fn, col);
+		end;
+	end;
+
 	-- ── Window:BuildSettingToggles(settingTab) ────────────────────────────────
 	function Window:BuildSettingToggles(settingTab)
 		local content2 = settingTab._content;
 
-		-- StarterGui.UILibrary.Setting.WatermarkSection
+		-- ── Watermark section ─────────────────────────────────────────────────
 		local G2L_wrap = Instance.new("Frame", content2);
 		G2L_wrap["Name"]             = [[WatermarkSection]];
 		G2L_wrap["Size"]             = UDim2.new(1, 0, 0, 32);
@@ -1236,7 +1348,6 @@ function Library:Create(hubName)
 
 		local G2L_hdr, G2L_hicon = makeHeader(G2L_wrap, "Watermark", 1);
 
-		-- StarterGui.UILibrary.Setting.WatermarkSection.WatermarkSubPanel
 		local G2L_subp = Instance.new("Frame", G2L_wrap);
 		G2L_subp["Name"]             = [[WatermarkSubPanel]];
 		G2L_subp["Size"]             = UDim2.new(1, 0, 0, 0);
@@ -1259,7 +1370,6 @@ function Library:Create(hubName)
 		G2L_subp["Parent"] = G2L_clip;
 
 		local expanded = false;
-
 		local function setExpanded(v)
 			expanded = v;
 			G2L_hicon["Image"] = expanded
@@ -1267,95 +1377,374 @@ function Library:Create(hubName)
 				or  [[rbxassetid://112384738137814]];
 			task.defer(function()
 				local targetH = expanded and G2L_subp.AbsoluteSize.Y or 0;
-				G2L["svc_tween"]:Create(G2L_clip, G2L["TWEEN_SLIDE"], {
-					["Size"] = UDim2.new(1, 0, 0, targetH);
-				}):Play();
+				G2L["svc_tween"]:Create(G2L_clip, G2L["TWEEN_SLIDE"], {["Size"] = UDim2.new(1,0,0,targetH)}):Play();
 			end);
 		end;
-
-		G2L_hdr.InputBegan:Connect(function(input)
-			if input.UserInputType == Enum.UserInputType.MouseButton1
-				or input.UserInputType == Enum.UserInputType.MouseButton2 then
+		G2L_hdr.InputBegan:Connect(function(i)
+			if i.UserInputType == Enum.UserInputType.MouseButton1
+				or i.UserInputType == Enum.UserInputType.MouseButton2 then
 				setExpanded(not expanded);
 			end;
 		end);
 		G2L_hicon.MouseButton1Click:Connect(function() setExpanded(not expanded) end);
 
-		-- StarterGui.UILibrary.Setting.WatermarkSection.HubName
-		makeToggleRow(G2L_subp, "Hub Name",    12, true,  function(on) G2L["wm_name"]["Visible"] = on end);
-		-- StarterGui.UILibrary.Setting.WatermarkSection.FpsCounter
-		makeToggleRow(G2L_subp, "FPS Counter", 12, true,  function(on) G2L["wm_fps"]["Visible"]  = on end);
-		-- StarterGui.UILibrary.Setting.WatermarkSection.PingCounter
-		makeToggleRow(G2L_subp, "Ping Counter",12, true,  function(on) G2L["wm_ping"]["Visible"] = on end);
+		makeToggleRow(G2L_subp, "Hub Name",    12, true, function(on) G2L["wm_name"]["Visible"] = on end);
+		makeToggleRow(G2L_subp, "FPS Counter", 12, true, function(on) G2L["wm_fps"]["Visible"]  = on end);
+		makeToggleRow(G2L_subp, "Ping Counter",12, true, function(on) G2L["wm_ping"]["Visible"] = on end);
 
-		-- StarterGui.UILibrary.Setting.ThemeSection
-		local G2L_themeWrap = Instance.new("Frame", content2);
-		G2L_themeWrap["Name"]             = [[ThemeSection]];
-		G2L_themeWrap["Size"]             = UDim2.new(1, 0, 0, 32);
-		G2L_themeWrap["AutomaticSize"]    = Enum.AutomaticSize.Y;
-		G2L_themeWrap["BackgroundTransparency"] = 1;
-		G2L_themeWrap["BorderSizePixel"]  = 0;
-		G2L_themeWrap["LayoutOrder"]      = 2;
-		local G2L_twl = Instance.new("UIListLayout", G2L_themeWrap);
-		G2L_twl["SortOrder"] = Enum.SortOrder.LayoutOrder;
-		G2L_twl["Padding"]   = UDim.new(0, 3);
+		-- ── Theme button row → opens floating theme panel ─────────────────────
+		local G2L_themeBtn = Instance.new("Frame", content2);
+		G2L_themeBtn["Name"]             = [[ThemeButton]];
+		G2L_themeBtn["Size"]             = UDim2.new(1, 0, 0, 32);
+		G2L_themeBtn["BackgroundColor3"] = Color3.fromRGB(14, 14, 19);
+		G2L_themeBtn["BorderSizePixel"]  = 0;
+		G2L_themeBtn["LayoutOrder"]      = 2;
+		G2L_themeBtn["Active"]           = true;
+		local G2L_tbc = Instance.new("UICorner", G2L_themeBtn);
+		G2L_tbc["CornerRadius"] = UDim.new(0, 6);
+		addHoverFx(G2L_themeBtn);
 
-		-- Theme header (click to expand)
-		local G2L_thdr, G2L_thicon = makeHeader(G2L_themeWrap, "Theme", 1);
+		local G2L_tblbl = Instance.new("TextLabel", G2L_themeBtn);
+		G2L_tblbl["Size"]                  = UDim2.new(1, -10, 1, 0);
+		G2L_tblbl["Position"]              = UDim2.new(0, 10, 0, 0);
+		G2L_tblbl["BackgroundTransparency"] = 1;
+		G2L_tblbl["BorderSizePixel"]       = 0;
+		G2L_tblbl["FontFace"]              = G2L["FONT_JOSEFIN"];
+		G2L_tblbl["TextSize"]              = 13;
+		G2L_tblbl["TextColor3"]            = Color3.fromRGB(200, 200, 215);
+		G2L_tblbl["TextXAlignment"]        = Enum.TextXAlignment.Left;
+		G2L_tblbl["Text"]                  = [[Theme]];
 
-		-- Theme sub-panel
-		local G2L_tsubp = Instance.new("Frame", G2L_themeWrap);
-		G2L_tsubp["Name"]             = [[ThemeSubPanel]];
-		G2L_tsubp["Size"]             = UDim2.new(1, 0, 0, 0);
-		G2L_tsubp["AutomaticSize"]    = Enum.AutomaticSize.Y;
-		G2L_tsubp["BackgroundColor3"] = Color3.fromRGB(11, 11, 15);
-		G2L_tsubp["BorderSizePixel"]  = 0;
-		G2L_tsubp["LayoutOrder"]      = 2;
-		local G2L_tspc = Instance.new("UICorner", G2L_tsubp);
-		G2L_tspc["CornerRadius"] = UDim.new(0, 6);
-		local G2L_tspl = Instance.new("UIListLayout", G2L_tsubp);
-		G2L_tspl["SortOrder"] = Enum.SortOrder.LayoutOrder;
-		G2L_tspl["Padding"]   = UDim.new(0, 6);
-		local G2L_tspp = Instance.new("UIPadding", G2L_tsubp);
-		G2L_tspp["PaddingLeft"]   = UDim.new(0, 8);
-		G2L_tspp["PaddingRight"]  = UDim.new(0, 8);
-		G2L_tspp["PaddingTop"]    = UDim.new(0, 8);
-		G2L_tspp["PaddingBottom"] = UDim.new(0, 8);
+		-- Small arrow on right
+		local G2L_tbarr = Instance.new("TextLabel", G2L_themeBtn);
+		G2L_tbarr["Size"]                  = UDim2.new(0, 20, 1, 0);
+		G2L_tbarr["Position"]              = UDim2.new(1, -24, 0, 0);
+		G2L_tbarr["BackgroundTransparency"] = 1;
+		G2L_tbarr["BorderSizePixel"]       = 0;
+		G2L_tbarr["FontFace"]              = G2L["FONT_JOSEFIN_B"];
+		G2L_tbarr["TextSize"]              = 14;
+		G2L_tbarr["TextColor3"]            = Color3.fromRGB(160, 160, 180);
+		G2L_tbarr["Text"]                  = [[›]];
 
-		local G2L_tclip = makeClipper(G2L_themeWrap, 2);
-		G2L_tsubp["Parent"] = G2L_tclip;
+		-- ── Floating Theme Panel (parented to ScreenGui so it overlays everything)
+		local G2L_sg2      = G2L["sg"];
+		local G2L_overlay  = Instance.new("Frame", G2L_sg2);
+		G2L_overlay["Name"]             = [[ThemeOverlay]];
+		G2L_overlay["Size"]             = UDim2.new(1, 0, 1, 0);
+		G2L_overlay["BackgroundTransparency"] = 1;
+		G2L_overlay["BorderSizePixel"]  = 0;
+		G2L_overlay["Visible"]          = false;
+		G2L_overlay["ZIndex"]           = 100;
 
-		local tExpanded = false;
-		local function setThemeExpanded(v)
-			tExpanded = v;
-			G2L_thicon["Image"] = tExpanded
-				and [[rbxassetid://121304296213645]]
-				or  [[rbxassetid://112384738137814]];
-			task.defer(function()
-				local targetH = tExpanded and G2L_tsubp.AbsoluteSize.Y or 0;
-				G2L["svc_tween"]:Create(G2L_tclip, G2L["TWEEN_SLIDE"], {
-					["Size"] = UDim2.new(1, 0, 0, targetH);
-				}):Play();
-			end);
+		-- Panel frame
+		local G2L_panel = Instance.new("Frame", G2L_overlay);
+		G2L_panel["Name"]             = [[ThemePanel]];
+		G2L_panel["Size"]             = UDim2.new(0, 300, 0, 390);
+		G2L_panel["AnchorPoint"]      = Vector2.new(0.5, 0.5);
+		G2L_panel["Position"]         = UDim2.new(0.5, 0, 0.5, 0);
+		G2L_panel["BackgroundColor3"] = Color3.fromRGB(14, 14, 19);
+		G2L_panel["BorderSizePixel"]  = 0;
+		G2L_panel["ZIndex"]           = 101;
+		local G2L_pc = Instance.new("UICorner", G2L_panel);
+		G2L_pc["CornerRadius"] = UDim.new(0, 8);
+		local G2L_ps = Instance.new("UIStroke", G2L_panel);
+		G2L_ps["Thickness"] = 1.5;
+		G2L_ps["Color"]     = Color3.fromRGB(40, 40, 55);
+
+		-- Title bar
+		local G2L_ptitle = Instance.new("Frame", G2L_panel);
+		G2L_ptitle["Name"]             = [[TitleBar]];
+		G2L_ptitle["Size"]             = UDim2.new(1, 0, 0, 36);
+		G2L_ptitle["BackgroundColor3"] = Color3.fromRGB(9, 9, 12);
+		G2L_ptitle["BorderSizePixel"]  = 0;
+		G2L_ptitle["ZIndex"]           = 102;
+		local G2L_ptc = Instance.new("UICorner", G2L_ptitle);
+		G2L_ptc["CornerRadius"] = UDim.new(0, 8);
+
+		local G2L_ptlbl = Instance.new("TextLabel", G2L_ptitle);
+		G2L_ptlbl["Size"]                  = UDim2.new(1, -40, 1, 0);
+		G2L_ptlbl["Position"]              = UDim2.new(0, 12, 0, 0);
+		G2L_ptlbl["BackgroundTransparency"] = 1;
+		G2L_ptlbl["BorderSizePixel"]       = 0;
+		G2L_ptlbl["FontFace"]              = G2L["FONT_JOSEFIN_B"];
+		G2L_ptlbl["TextSize"]              = 14;
+		G2L_ptlbl["TextColor3"]            = Color3.fromRGB(255, 255, 255);
+		G2L_ptlbl["TextXAlignment"]        = Enum.TextXAlignment.Left;
+		G2L_ptlbl["Text"]                  = [[Theme]];
+		G2L_ptlbl["ZIndex"]                = 102;
+		local G2L_ptg = Instance.new("UIGradient", G2L_ptlbl);
+		G2L_ptg["Color"] = ColorSequence.new{
+			ColorSequenceKeypoint.new(0,     Color3.fromRGB(204,218,255));
+			ColorSequenceKeypoint.new(0.502, Color3.fromRGB(255,220,220));
+			ColorSequenceKeypoint.new(1,     Color3.fromRGB(229,236,255));
+		};
+
+		-- X close button
+		local G2L_xbtn = Instance.new("TextButton", G2L_ptitle);
+		G2L_xbtn["Name"]             = [[CloseBtn]];
+		G2L_xbtn["Size"]             = UDim2.new(0, 26, 0, 26);
+		G2L_xbtn["Position"]         = UDim2.new(1, -30, 0.5, -13);
+		G2L_xbtn["BackgroundColor3"] = Color3.fromRGB(30, 30, 40);
+		G2L_xbtn["BorderSizePixel"]  = 0;
+		G2L_xbtn["FontFace"]         = G2L["FONT_JOSEFIN_B"];
+		G2L_xbtn["TextSize"]         = 14;
+		G2L_xbtn["TextColor3"]       = Color3.fromRGB(200, 180, 180);
+		G2L_xbtn["Text"]             = [[✕]];
+		G2L_xbtn["ZIndex"]           = 103;
+		local G2L_xc = Instance.new("UICorner", G2L_xbtn);
+		G2L_xc["CornerRadius"] = UDim.new(0, 5);
+
+		-- Separator under title
+		local G2L_psep = Instance.new("Frame", G2L_panel);
+		G2L_psep["Size"]             = UDim2.new(1, -16, 0, 2);
+		G2L_psep["Position"]         = UDim2.new(0, 8, 0, 38);
+		G2L_psep["BackgroundColor3"] = Color3.fromRGB(40, 40, 55);
+		G2L_psep["BorderSizePixel"]  = 0;
+		G2L_psep["ZIndex"]           = 102;
+		local G2L_psepc = Instance.new("UICorner", G2L_psep);
+		G2L_psepc["CornerRadius"] = UDim.new(0, 2);
+
+		-- Content area inside panel
+		local G2L_pcontent = Instance.new("ScrollingFrame", G2L_panel);
+		G2L_pcontent["Size"]                   = UDim2.new(1, -16, 1, -50);
+		G2L_pcontent["Position"]               = UDim2.new(0, 8, 0, 44);
+		G2L_pcontent["BackgroundTransparency"] = 1;
+		G2L_pcontent["BorderSizePixel"]        = 0;
+		G2L_pcontent["ScrollBarThickness"]     = 3;
+		G2L_pcontent["ScrollBarImageColor3"]   = Color3.fromRGB(82, 82, 111);
+		G2L_pcontent["CanvasSize"]             = UDim2.new(0, 0, 0, 0);
+		G2L_pcontent["AutomaticCanvasSize"]    = Enum.AutomaticSize.Y;
+		G2L_pcontent["ZIndex"]                 = 102;
+		local G2L_pcl = Instance.new("UIListLayout", G2L_pcontent);
+		G2L_pcl["SortOrder"] = Enum.SortOrder.LayoutOrder;
+		G2L_pcl["Padding"]   = UDim.new(0, 8);
+
+		-- ── Helper: section label inside theme panel ──────────────────────────
+		local function themeLabel(txt, order)
+			local G2L_lf = Instance.new("TextLabel", G2L_pcontent);
+			G2L_lf["Size"]                  = UDim2.new(1, 0, 0, 16);
+			G2L_lf["BackgroundTransparency"] = 1;
+			G2L_lf["BorderSizePixel"]       = 0;
+			G2L_lf["FontFace"]              = G2L["FONT_JOSEFIN_B"];
+			G2L_lf["TextSize"]              = 11;
+			G2L_lf["TextColor3"]            = Color3.fromRGB(120, 120, 150);
+			G2L_lf["TextXAlignment"]        = Enum.TextXAlignment.Left;
+			G2L_lf["Text"]                  = txt:upper();
+			G2L_lf["LayoutOrder"]           = order;
+			G2L_lf["ZIndex"]                = 102;
 		end;
-		G2L_thdr.InputBegan:Connect(function(input)
-			if input.UserInputType == Enum.UserInputType.MouseButton1
-				or input.UserInputType == Enum.UserInputType.MouseButton2 then
-				setThemeExpanded(not tExpanded);
-			end;
-		end);
-		G2L_thicon.MouseButton1Click:Connect(function() setThemeExpanded(not tExpanded) end);
 
-		-- StarterGui.UILibrary.Setting.ThemeSection.ColorPicker (Color)
-		makeToggleColorRow(G2L_tsubp, "Color", 12, true,
-			Color3.fromRGB(255, 255, 255),
-			nil,  -- no toggle callback needed here
+		-- ── Accent color picker ───────────────────────────────────────────────
+		themeLabel("Accent Color", 1);
+
+		-- Swatch row for accent
+		local G2L_accentRow = Instance.new("Frame", G2L_pcontent);
+		G2L_accentRow["Size"]             = UDim2.new(1, 0, 0, 32);
+		G2L_accentRow["BackgroundColor3"] = Color3.fromRGB(18, 18, 24);
+		G2L_accentRow["BorderSizePixel"]  = 0;
+		G2L_accentRow["LayoutOrder"]      = 2;
+		G2L_accentRow["Active"]           = true;
+		G2L_accentRow["ZIndex"]           = 102;
+		local G2L_arc = Instance.new("UICorner", G2L_accentRow);
+		G2L_arc["CornerRadius"] = UDim.new(0, 6);
+		addHoverFx(G2L_accentRow);
+
+		local G2L_accentLbl = Instance.new("TextLabel", G2L_accentRow);
+		G2L_accentLbl["Size"]                  = UDim2.new(1, -50, 1, 0);
+		G2L_accentLbl["Position"]              = UDim2.new(0, 10, 0, 0);
+		G2L_accentLbl["BackgroundTransparency"] = 1;
+		G2L_accentLbl["BorderSizePixel"]       = 0;
+		G2L_accentLbl["FontFace"]              = G2L["FONT_JOSEFIN"];
+		G2L_accentLbl["TextSize"]              = 12;
+		G2L_accentLbl["TextColor3"]            = Color3.fromRGB(180, 180, 200);
+		G2L_accentLbl["TextXAlignment"]        = Enum.TextXAlignment.Left;
+		G2L_accentLbl["Text"]                  = [[Accent Color]];
+		G2L_accentLbl["ZIndex"]                = 102;
+
+		local DEFAULT_ACCENT = Color3.fromRGB(82, 82, 111);
+		local G2L_accentSwatch = Instance.new("Frame", G2L_accentRow);
+		G2L_accentSwatch["Size"]             = UDim2.new(0, 18, 0, 18);
+		G2L_accentSwatch["Position"]         = UDim2.new(1, -26, 0.5, -9);
+		G2L_accentSwatch["BackgroundColor3"] = DEFAULT_ACCENT;
+		G2L_accentSwatch["BorderSizePixel"]  = 0;
+		G2L_accentSwatch["ZIndex"]           = 103;
+		local G2L_aswc = Instance.new("UICorner", G2L_accentSwatch);
+		G2L_aswc["CornerRadius"] = UDim.new(0, 4);
+		local G2L_asws = Instance.new("UIStroke", G2L_accentSwatch);
+		G2L_asws["Thickness"] = 1.2;
+		G2L_asws["Color"]     = Color3.fromRGB(80, 80, 100);
+
+		-- Accent color picker (opens below)
+		local G2L_accentPickerWrap = Instance.new("Frame", G2L_pcontent);
+		G2L_accentPickerWrap["Size"]             = UDim2.new(1, 0, 0, 0);
+		G2L_accentPickerWrap["AutomaticSize"]    = Enum.AutomaticSize.Y;
+		G2L_accentPickerWrap["BackgroundTransparency"] = 1;
+		G2L_accentPickerWrap["BorderSizePixel"]  = 0;
+		G2L_accentPickerWrap["LayoutOrder"]      = 3;
+		G2L_accentPickerWrap["ZIndex"]           = 102;
+
+		local accentPickerOpen = false;
+		local G2L_accentPicker, getAccent = makeColorPicker(G2L_accentPickerWrap,
+			DEFAULT_ACCENT,
 			function(col)
-				-- accent color — user can use this however they want
-				-- stored in G2L for global access
-				G2L["accent_color"] = col;
+				G2L_accentSwatch["BackgroundColor3"] = col;
+				-- Apply accent: update all tab strokes + ignorelines + pill on colors
+				applyAccent(col);
+				-- Update tab strokes
+				for _, tab in ipairs(tabs) do
+					local stroke = tab:FindFirstChildOfClass("UIStroke");
+					if stroke then stroke["Color"] = col end;
+					-- Update ignoreline color
+					local ignoreline = tab:FindFirstChild("IgnoreLine");
+					if ignoreline then ignoreline["BackgroundColor3"] = col end;
+				end;
+				-- Update wm badge strokes
+				for _, badge in ipairs({G2L["wm_name"], G2L["wm_fps"], G2L["wm_ping"]}) do
+					local s = badge:FindFirstChildOfClass("UIStroke");
+					if s then s["Color"] = col end;
+				end;
 			end
 		);
+		G2L_accentPicker["Parent"] = G2L_accentPickerWrap;
+		G2L_accentPicker["ZIndex"] = 102;
+
+		G2L_accentRow.InputBegan:Connect(function(i)
+			if i.UserInputType == Enum.UserInputType.MouseButton1 then
+				accentPickerOpen = not accentPickerOpen;
+				G2L_accentPicker["Visible"] = accentPickerOpen;
+			end;
+		end);
+
+		-- ── Outline color picker ──────────────────────────────────────────────
+		themeLabel("Outline Color", 4);
+
+		local G2L_outRow = Instance.new("Frame", G2L_pcontent);
+		G2L_outRow["Size"]             = UDim2.new(1, 0, 0, 32);
+		G2L_outRow["BackgroundColor3"] = Color3.fromRGB(18, 18, 24);
+		G2L_outRow["BorderSizePixel"]  = 0;
+		G2L_outRow["LayoutOrder"]      = 5;
+		G2L_outRow["Active"]           = true;
+		G2L_outRow["ZIndex"]           = 102;
+		local G2L_orc = Instance.new("UICorner", G2L_outRow);
+		G2L_orc["CornerRadius"] = UDim.new(0, 6);
+		addHoverFx(G2L_outRow);
+
+		local G2L_outLbl = Instance.new("TextLabel", G2L_outRow);
+		G2L_outLbl["Size"]                  = UDim2.new(1, -50, 1, 0);
+		G2L_outLbl["Position"]              = UDim2.new(0, 10, 0, 0);
+		G2L_outLbl["BackgroundTransparency"] = 1;
+		G2L_outLbl["BorderSizePixel"]       = 0;
+		G2L_outLbl["FontFace"]              = G2L["FONT_JOSEFIN"];
+		G2L_outLbl["TextSize"]              = 12;
+		G2L_outLbl["TextColor3"]            = Color3.fromRGB(180, 180, 200);
+		G2L_outLbl["TextXAlignment"]        = Enum.TextXAlignment.Left;
+		G2L_outLbl["Text"]                  = [[Outline Color]];
+		G2L_outLbl["ZIndex"]                = 102;
+
+		local DEFAULT_OUTLINE = Color3.fromRGB(24, 25, 30);
+		local G2L_outSwatch = Instance.new("Frame", G2L_outRow);
+		G2L_outSwatch["Size"]             = UDim2.new(0, 18, 0, 18);
+		G2L_outSwatch["Position"]         = UDim2.new(1, -26, 0.5, -9);
+		G2L_outSwatch["BackgroundColor3"] = DEFAULT_OUTLINE;
+		G2L_outSwatch["BorderSizePixel"]  = 0;
+		G2L_outSwatch["ZIndex"]           = 103;
+		local G2L_oswc = Instance.new("UICorner", G2L_outSwatch);
+		G2L_oswc["CornerRadius"] = UDim.new(0, 4);
+		local G2L_osws = Instance.new("UIStroke", G2L_outSwatch);
+		G2L_osws["Thickness"] = 1.2;
+		G2L_osws["Color"]     = Color3.fromRGB(80, 80, 100);
+
+		local G2L_outPickerWrap = Instance.new("Frame", G2L_pcontent);
+		G2L_outPickerWrap["Size"]             = UDim2.new(1, 0, 0, 0);
+		G2L_outPickerWrap["AutomaticSize"]    = Enum.AutomaticSize.Y;
+		G2L_outPickerWrap["BackgroundTransparency"] = 1;
+		G2L_outPickerWrap["BorderSizePixel"]  = 0;
+		G2L_outPickerWrap["LayoutOrder"]      = 6;
+		G2L_outPickerWrap["ZIndex"]           = 102;
+
+		local outPickerOpen = false;
+		local G2L_outPicker, _ = makeColorPicker(G2L_outPickerWrap, DEFAULT_OUTLINE, function(col)
+			G2L_outSwatch["BackgroundColor3"] = col;
+			-- Apply to all tab UIStrokes (outer border)
+			for _, tab in ipairs(tabs) do
+				local stroke = tab:FindFirstChildOfClass("UIStroke");
+				if stroke then stroke["Color"] = col end;
+			end;
+		end);
+		G2L_outPicker["Parent"] = G2L_outPickerWrap;
+		G2L_outPicker["ZIndex"] = 102;
+
+		G2L_outRow.InputBegan:Connect(function(i)
+			if i.UserInputType == Enum.UserInputType.MouseButton1 then
+				outPickerOpen = not outPickerOpen;
+				G2L_outPicker["Visible"] = outPickerOpen;
+			end;
+		end);
+
+		-- ── Reset button ──────────────────────────────────────────────────────
+		local G2L_resetBtn = Instance.new("TextButton", G2L_pcontent);
+		G2L_resetBtn["Name"]             = [[ResetBtn]];
+		G2L_resetBtn["Size"]             = UDim2.new(1, 0, 0, 30);
+		G2L_resetBtn["BackgroundColor3"] = Color3.fromRGB(40, 20, 20);
+		G2L_resetBtn["BorderSizePixel"]  = 0;
+		G2L_resetBtn["LayoutOrder"]      = 7;
+		G2L_resetBtn["FontFace"]         = G2L["FONT_JOSEFIN_B"];
+		G2L_resetBtn["TextSize"]         = 13;
+		G2L_resetBtn["TextColor3"]       = Color3.fromRGB(220, 150, 150);
+		G2L_resetBtn["Text"]             = [[Reset to Default]];
+		G2L_resetBtn["ZIndex"]           = 102;
+		local G2L_rbc = Instance.new("UICorner", G2L_resetBtn);
+		G2L_rbc["CornerRadius"] = UDim.new(0, 6);
+
+		G2L_resetBtn.MouseButton1Click:Connect(function()
+			-- Reset accent
+			G2L_accentSwatch["BackgroundColor3"] = DEFAULT_ACCENT;
+			accentPickerOpen = false;
+			G2L_accentPicker["Visible"] = false;
+			for _, tab in ipairs(tabs) do
+				local stroke = tab:FindFirstChildOfClass("UIStroke");
+				if stroke then stroke["Color"] = DEFAULT_OUTLINE end;
+				local il = tab:FindFirstChild("IgnoreLine");
+				if il then il["BackgroundColor3"] = Color3.fromRGB(82,82,111) end;
+			end;
+			for _, badge in ipairs({G2L["wm_name"], G2L["wm_fps"], G2L["wm_ping"]}) do
+				local s = badge:FindFirstChildOfClass("UIStroke");
+				if s then s["Color"] = Color3.fromRGB(40,42,50) end;
+			end;
+			applyAccent(DEFAULT_ACCENT);
+			-- Reset outline
+			G2L_outSwatch["BackgroundColor3"] = DEFAULT_OUTLINE;
+			outPickerOpen = false;
+			G2L_outPicker["Visible"] = false;
+		end);
+
+		-- Make panel draggable via title bar
+		makeDraggable(G2L_panel, G2L_ptitle);
+
+		-- Open / close panel
+		local panelOpen = false;
+		local function togglePanel(v)
+			panelOpen = v;
+			G2L_overlay["Visible"] = panelOpen;
+		end;
+
+		G2L_themeBtn.InputBegan:Connect(function(i)
+			if i.UserInputType == Enum.UserInputType.MouseButton1 then
+				togglePanel(not panelOpen);
+			end;
+		end);
+		G2L_xbtn.MouseButton1Click:Connect(function() togglePanel(false) end);
+		-- Click outside panel (on overlay) closes it
+		G2L_overlay.InputBegan:Connect(function(i)
+			if i.UserInputType == Enum.UserInputType.MouseButton1 then
+				-- only close if click was on the overlay itself, not the panel
+				togglePanel(false);
+			end;
+		end);
+		G2L_panel.InputBegan:Connect(function(i)
+			-- stop click from bubbling to overlay
+			i:Handled();
+		end);
 	end;
 
 	return Window;
